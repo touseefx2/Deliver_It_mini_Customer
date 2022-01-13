@@ -1,0 +1,166 @@
+{
+  "project_info": {
+    "project_number": "664935989773",
+    "project_id": "karblock-3f99f",
+    "storage_bucket": "karblock-3f99f.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:664935989773:android:29448b44e43f89fc080b44",
+        "android_client_info": {
+          "package_name": "com.deleiveritc"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "664935989773-f5n632ncek2ktqd1lnek3ba4kv5pambl.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.deleiveritc",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "664935989773-hfnr1ee9235s764avptg5r3unfn1ufiv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3CQOec4B1EZIuERr79VZFsu2yloJkDiE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "664935989773-hfnr1ee9235s764avptg5r3unfn1ufiv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:664935989773:android:353263e9237db4a0080b44",
+        "android_client_info": {
+          "package_name": "com.deliveritapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "664935989773-hfnr1ee9235s764avptg5r3unfn1ufiv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3CQOec4B1EZIuERr79VZFsu2yloJkDiE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "664935989773-hfnr1ee9235s764avptg5r3unfn1ufiv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:664935989773:android:6f206011e994e83d080b44",
+        "android_client_info": {
+          "package_name": "com.karblock"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "664935989773-6j3siqrmdhdhlajmqrkur756k7m2hfjo.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.karblock",
+            "certificate_hash": "24100f591bae00e1193f4ac1aefc8225a87e1c26"
+          }
+        },
+        {
+          "client_id": "664935989773-h5leclk13ns88hm3kjdlvftbid8fp0vj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.karblock",
+            "certificate_hash": "6cd747bae9c0ad568635fe79168a6124293cae66"
+          }
+        },
+        {
+          "client_id": "664935989773-hfnr1ee9235s764avptg5r3unfn1ufiv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3CQOec4B1EZIuERr79VZFsu2yloJkDiE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "664935989773-hfnr1ee9235s764avptg5r3unfn1ufiv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:664935989773:android:10949d834ad6443d080b44",
+        "android_client_info": {
+          "package_name": "com.karblockowner"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "664935989773-45467gh8re3shqf4ijufb8jsi160o5rh.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.karblockowner",
+            "certificate_hash": "6cd747bae9c0ad568635fe79168a6124293cae66"
+          }
+        },
+        {
+          "client_id": "664935989773-hjke20ev4leed9rrscvoe0a23kb1q7ak.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.karblockowner",
+            "certificate_hash": "7ed828ce87e4b8c38f95a9e17450826aa18e2fa6"
+          }
+        },
+        {
+          "client_id": "664935989773-hfnr1ee9235s764avptg5r3unfn1ufiv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3CQOec4B1EZIuERr79VZFsu2yloJkDiE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "664935989773-hfnr1ee9235s764avptg5r3unfn1ufiv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
