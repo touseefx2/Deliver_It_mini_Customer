@@ -120,7 +120,7 @@ function handleBackButtonClick() {
         backgroundColor={'#fff'} />
       <View style={styles.mainContainer}>
 
- {(!usermanager.user.profile_image)&&(<utils.vectorIcon.FontAwesome  name="user-circle" color="#0E47A1" size={99} />)}
+ {(!usermanager.user.profile_image||usermanager.user.profile_image=="")&&(<utils.vectorIcon.FontAwesome  name="user-circle" color="#0E47A1" size={99} />)}
  {(usermanager.user.profile_image&&usermanager.user.profile_image!=="")&&(
  <View style={{width:100,height:100,borderColor:"#0E47A1",borderRadius:50,borderWidth:1,alignItems:"center",justifyContent:"center",marginTop:20}}>
  <Image onLoad={()=>{setimgLoad(true)}}  style={{width:99,height:99,borderRadius:49.5}}  source={{uri:usermanager.user.profile_image}} />

@@ -76,6 +76,21 @@ const styles = StyleSheet.create({
 		borderColor:'#e5e5e5',
 		marginTop:5
 	},
+	Button:{
+		height:48,
+		borderRadius:48,
+		marginTop:30,
+		width:'100%',
+		alignSelf:'center',
+		backgroundColor:'#0E47A1',
+		justifyContent:'center'
+	},
+	ButtonText:{
+		alignSelf:'center',
+		color:"white",
+		fontFamily:'Inter-Bold',
+		fontSize:16
+	},
 })
 
 export default styles;

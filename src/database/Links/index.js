@@ -3,7 +3,7 @@
 
 //local link
 const links = "http://192.168.10.16:3001/"
-const socket="http://10.7.148.141:3001"
+const socket="http://192.168.10.16:3001"
 
 const login = "user/loginCustomer"
 const signup="user/addCustomer"

@@ -1035,8 +1035,8 @@ const onClickcancelTrip=(r,wt,cf)=>{
  
 	if((isdropoff && ispickup==false && !cashDialog && !ridedetail && !chalo  && acceptRequest=="f") ){
 		BackHandler.removeEventListener("hardwareBackPress", handleBackButtonClickk);	
-		   seti(0),setisdropoff(false),setr(true),setpickup({}),setTimeout(() => {
-			setr(false)
+		   seti(0),setisdropoff(false) ,setpickup({}),setTimeout(() => {
+			 
 		}, rfalsetime);
 	}
  
@@ -1908,7 +1908,7 @@ const renderFooter=()=>{
 			   <View style={{flexDirection:"row",justifyContent:"space-between",width:"100%",padding:10,marginTop:3,backgroundColor:"white"}}>
 			  
 	 
- {(!req.captain.profile_image)&&(<utils.vectorIcon.FontAwesome  name="user-circle" color="#0E47A1" size={60} />)}
+ {(!req.captain.profile_image || req.captain.profile_image =="")&&(<utils.vectorIcon.FontAwesome  name="user-circle" color="#0E47A1" size={60} />)}
  {(req.captain.profile_image&&req.captain.profile_image!=="")&&(
  <View style={{width:60,height:60,borderColor:"#0E47A1",borderRadius:30,borderWidth:1,alignItems:"center",justifyContent:"center"}}>
  <Image onLoad={()=>{setimgLoadd(true)}}  style={{width:59,height:59,borderRadius:29.5}}  source={{uri:req.captain.profile_image}} />
@@ -2059,7 +2059,7 @@ const renderFooter=()=>{
 		  
 	 
 
- {(!req.captain.profile_image)&&(<utils.vectorIcon.FontAwesome  name="user-circle" color="#0E47A1" size={60} />)}
+ {(!req.captain.profile_image || req.captain.profile_image=="" )&&(<utils.vectorIcon.FontAwesome  name="user-circle" color="#0E47A1" size={60} />)}
  {(req.captain.profile_image&&req.captain.profile_image!=="")&&(
  <View style={{width:60,height:60,borderColor:"#0E47A1",borderRadius:30,borderWidth:1,alignItems:"center",justifyContent:"center"}}>
  <Image onLoad={()=>{setimgLoad(true)}}  style={{width:59,height:59,borderRadius:29.5}}  source={{uri:req.captain.profile_image}} />

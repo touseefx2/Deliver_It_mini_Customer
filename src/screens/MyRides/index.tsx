@@ -26,6 +26,8 @@ const MyRides = observer((props: Props) => {
 	const [isserverErr,setisserverErr]=useState(false);
 	const [refresh,setrefresh]=useState(false);
 	const [loader,setloader]=useState(false);
+
+	
   
 	const [tabIndex, setTabIndex] = useState(0);
  
@@ -74,6 +76,7 @@ const MyRides = observer((props: Props) => {
 	  
 				 if(!response.data){
 				  utils.AlertMessage("", response.message ) ;
+				  settrip(false);
 				  setgettripOnce(false)
 				  return;
 				 }
@@ -206,8 +209,28 @@ if(c){
 		)
 	  }
 
+	  const renderDataLoadeErr=()=>{
+		return  (
+			<View style={{marginTop:"60%"}}>
+			<Text style={{color:"grey",fontSize:15,alignSelf:"center",marginBottom:5}}>Data not load !</Text>
+			<TouchableOpacity   onPress={()=>{ if(generalmanager.internet){setrefresh(true)}else{utils.AlertMessage("","Please connect internet !")} }}>
+			<Text  style={{color:"red",fontSize:15,textDecorationLine:"underline",alignSelf:"center"}}>Retry</Text>
+			</TouchableOpacity>
+			</View>
+		)
+	  }
+
 	const renderInternetErr=()=>{
-		return <Text style={{position:"absolute",top:"60%",color:"grey",fontSize:15,alignSelf:"center"}}>No internet connection !</Text>
+		return <Text style={{position:"absolute",top:"50%",color:"grey",fontSize:15,alignSelf:"center"}}>No internet connection !</Text>
+	  }
+
+	  const renderNoDataErr=()=>{
+		return  (
+		  <View style={{flexDirection:"row",marginTop:110,alignItems:"center",alignSelf:"center"}}>
+		  <utils.vectorIcon.Foundation name="page-doc"  size={20} color={"grey"} />
+		  <Text style={{color:"grey",fontSize:15,alignSelf:"center",marginLeft:15,top:2.5}}>No Record Found !</Text>
+		   </View>
+		)
 	  }
 
 	  const renderShowTrips=()=>{
@@ -310,20 +333,12 @@ if(c){
 				) : (
 					<View>
 {isserverErr  && !loader && renderServerErr()}
-{loader  && <ActivityIndicator style={{marginTop:"60%",alignSelf:"center"}} size={25} color={"blue"} />}
-
-
-{!loader  && (trip.length<=0 || !trip) && !isserverErr &&(
-   <View style={{flexDirection:"row",marginTop:"60%",alignItems:"center",alignSelf:"center"}}>
-  <utils.vectorIcon.Foundation name="page-doc"  size={20} color={"grey"} />
-  <Text style={{color:"grey",fontSize:15,alignSelf:"center",marginLeft:15,top:2.5}}>No Record Found !</Text>
-   </View>
- )}
-
+{!loader  &&  !trip && !isserverErr && generalmanager.internet && renderDataLoadeErr()}
+{!loader && trip  && trip.length<=0  && !isserverErr &&renderNoDataErr()}
+{loader  && <ActivityIndicator style={{marginTop:"60%",alignSelf:"center"}} size={25} color={"#0E47A1"} />}
 {!loader && trip && trip.length>0 && !isserverErr &&(renderShowTrips() )}
 
- 
-
+  
 					</View>
 					
 				)}

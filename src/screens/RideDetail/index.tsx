@@ -1,70 +1,406 @@
-import React, { useState, useRef } from 'react';
-import { Text, View, TextInput, Image, StatusBar, PermissionsAndroid, TouchableOpacity, SafeAreaView, Platform, Keyboard, TouchableWithoutFeedback,ActivityIndicator } from 'react-native'
+import React, { useState, useEffect} from 'react';
+import { Text, View, TextInput, Image, StatusBar, PermissionsAndroid, TouchableOpacity, SafeAreaView, Platform, Keyboard, TouchableWithoutFeedback,ActivityIndicator,Alert } from 'react-native'
 import { observer } from 'mobx-react';
 import { Navigation } from 'react-native-navigation';
 import styles from './styles'
-import Icon from 'react-native-vector-icons/EvilIcons'
 import Ionicons from 'react-native-vector-icons/Ionicons'
-import FontAwesome from 'react-native-vector-icons/FontAwesome'
-import AntDesign from 'react-native-vector-icons/AntDesign'
-import Feather from 'react-native-vector-icons/Feather'
-import SimpleLineIcons from 'react-native-vector-icons/SimpleLineIcons'
 import Material from 'react-native-vector-icons/MaterialIcons'
 import { ScrollView } from 'react-native-gesture-handler';
-import { AUTH_NAV_ID, gotoHome, ROOT_NAV_ID } from '../../navigation';
+import {  goToLogin , ROOT_NAV_ID } from '../../navigation';
 import moment from 'moment';
 import utils from '../../utils';
-// import Modal from 'react-native-modal';
-// import DateTimePicker from '@react-native-community/datetimepicker'
-  import { usermanager } from '../../managers/UserManager';
-// import { RadioButton } from 'react-native-paper';
-// import db from "../../database/index" 
-
+import StarRating from 'react-native-star-rating';
+import Modal from 'react-native-modal';
+import { usermanager } from '../../managers/UserManager';
+import { generalmanager } from '../../managers/generalManager';
+import db from "../../database/index" 
+ 
 
 const RideDetail = observer((props) => {
 
 
 	const [visible, setVisible] = useState(false)
+	const [starCount,setstarCount] = useState(0);
 
 	const [imgLoad, setimgLoad] = useState(false);
+	const [showRating, setshowRating] = useState(false);
 
-	const e=props.trip;  //selected trip
-    const trnsctn=props.trnsctn;   //trnsctn of this trip
  
+	const [loader, setloader] = useState(false);
+
+	const [loaderr, setloaderr] = useState(false);
+
+	const [e, sete] = useState(false);   // selected trip data
+	const [gettripOnce,setgettripOnce]=useState(false);
+	const [isserverErr,setisserverErr]=useState(false);
+	const [refresh,setrefresh]=useState(false);
+
+	const trp=props.trip          
+	const tid=props.trip._id     //slected trip id
+    const trnsctn=props.trnsctn;   //trnsctn of this trip
+  
+	function secondsToHms(d) {
+		d = Number(d);
+		var h = Math.floor(d / 3600);
+		var m = Math.floor(d % 3600 / 60);
+		var s = Math.floor(d % 3600 % 60);
+	  
+		var hDisplay = h > 0 ? h + (h == 1 ? " h, " : " h, ") : "";
+		var mDisplay = m > 0 ? m + (m == 1 ? " m, " : " m, ") : "";
+		var sDisplay = s > 0 ? s + (s == 1 ? " s" : " s") : "";
+		return hDisplay + mDisplay + sDisplay; 
+	  }
+
+	  useEffect(() => {
+		if(refresh){
+		  setloader(false);setgettripOnce(false);setisserverErr(false);
+		  sete(false); 
+		  setrefresh(false);
+		}
+	   }, [refresh])
+		
+	   useEffect(() => {
+		if(generalmanager.internet&&!refresh){
+		 if(!gettripOnce){
+			getTrips()
+		 }
+	   }
+	 
+	},[generalmanager.internet,refresh,gettripOnce])
+
+	const getTrips=()=>{
+		setloader(true);
+		setisserverErr(false);
+		sete(false)
+		setgettripOnce(false);
+
+		const bodyData=false
+		const header= usermanager.authToken
+		 
+
+		// method, path, body, header
+		db.api.apiCall("get",db.link.getTripsbyId+tid,bodyData,header)
+		.then((response) => {
+		    setloader(false);
+			 setisserverErr(false);
+  
+			 console.log("getallTripsbytid response : " , response);
+		  
+			   if(response.msg=="Invalid Token"){
+				 utils.AlertMessage("",response.msg) ;
+				 usermanager.attemptToLogout();
+				 goToLogin();
+				return;
+			   }
+  
+			 if(!response.data){
+			  utils.AlertMessage("", response.message ) ;
+			  sete(false)
+			  setgettripOnce(false)
+			  return;
+			 }
+		
+		
+			 if(response.data){
+			   setgettripOnce(true)
+		       sete(response.data[0])
+			  }
+		  
+		   
+			 return;
+		 
+		}).catch((e) => {
+			setloader(false);
+			setisserverErr(true);
+			setgettripOnce(false);
+			sete(false);
+		   console.error("getallTripsbytid catch error : ", e)
+		  return;
+		})
+  }	
 
 	const goBack = () => {
 		Navigation.pop(ROOT_NAV_ID)
 	}
 
 	const onClickRate=()=>{
-		
+		setshowRating(true)
 	}
 
+	const submitRate=()=>{
+		setloaderr(true)
+		let bodyData=   {
+		   rating:starCount
+		  }
+		const header= usermanager.authToken
+	  
+		  db.api.apiCall("put",db.link.addTripRating+e._id,bodyData,header)
+		   .then((response) => {
+		    setloaderr(false)
+			console.log("onTripRating response : " , response);
+	   
+			if(response.msg=="Invalid Token"){
+			  utils.AlertMessage("", response.msg ) ;
+			  usermanager.attemptToLogout();
+			  goToLogin();
+			  return;
+		  }
+	 
+			if(response.success){	  
+				utils.ToastAndroid.ToastAndroid_SB("Success");
+				// sete(response.data);
+				closeRateSheet() 
+				return;
+			}
+   
+			if(!response.success){
+		 	utils.AlertMessage("",response.message);
+		 	 return;
+		 }
+   
+  
+	  return;
+	 }).catch((e) => {
+		setloaderr(false);
+		utils.AlertMessage("","Network request failed");
+		console.error("onTripRating catch error : ", e)
+	   return;
+	 })
+	}
 
+	const onclickSubmitRate=()=>{
+		Alert.alert(
+			"Confirmation",
+			"Are you sure you want submit rating ?",
+			[
+			  {
+				text: "No",
+				onPress: () => console.log("Cancel Pressed"),
+				style: "cancel"
+			  },
+			  { text: "Yes", onPress: () =>  {
+				if(generalmanager.internet){ 
+			     submitRate()
+				}else{
+				  utils.AlertMessage("","Please connect internet !")
+				}
+			  } }
+			]
+		  );
 
-	console.log("trs : ",trnsctn)
-	console.log("trp : ",e)
-
-	var  t =  moment(e.createdAt).format('hh:mm a')  
-	var date =  moment(e.createdAt).format("DD MMM Y");   //9 july 2021
-	let createdAt= date+", "+t
-	let tid=e.t_id   //trip id
-	let rent=e.rent //total amount in trip ride fare
-    let pm=e.payment_mode
-
-	let distance=e.distance.toFixed(1)
-
-	let status=e.status[e.status.length-1].status
-
-	let totaltime=0;
-
-	let ratetrip=true;
 	
+	
+	}
+
+	const closeRateSheet=()=>{
+		setshowRating(false);
+		setstarCount(0);
+	}
+
+	const renderRatingSheet=()=>{
+		return(		
+			
+			<Modal
+			isVisible={showRating}
+			backdropOpacity={0.5}
+			animationIn="fadeInUp"
+		    style={{flex:1,padding:0,margin:0}}
+			animationOut="fadeOutDown"
+			animationInTiming={600}
+			animationOutTiming={100}
+			backdropTransitionInTiming={600}
+			backdropTransitionOutTiming={100}
+			onRequestClose={() =>closeRateSheet()}
+		 >
+		  
+		  	<View style={{ 
+					 padding:20,
+					 alignItems:"center",
+					 width:"100%",
+					 alignSelf:"center",
+					 justifyContent:"center",
+					 backgroundColor:"white",
+					 borderTopLeftRadius:20,
+					 borderTopRightRadius:20,
+					 position:"absolute",
+					 bottom:0}}>
+	  
+ 
+ <TouchableOpacity activeOpacity={0.7} onPress={()=>closeRateSheet()} style={{position:"absolute",top:5,right:5}}>
+ <utils.vectorIcon.Entypo name="circle-with-cross" size={20} color={"silver"}  />
+ </TouchableOpacity>
+
+{(!e.captain.profile_image || e.captain.profile_image=="" )&&(<utils.vectorIcon.FontAwesome style={{alignSelf:"center"}}  name="user-circle" color="#0E47A1" size={60} />)}
+{(e.captain.profile_image&&e.captain.profile_image!=="")&&(
+<View style={{width:65,height:65,borderColor:"#0E47A1",borderRadius:32.5,borderWidth:1,alignItems:"center",justifyContent:"center",alignSelf:"center"}}>
+<Image onLoad={()=>{setimgLoad(true)}}  style={{width:64,height:64,borderRadius:32}}  source={{uri:e.captain.profile_image}} />
+{imgLoad==false && <ActivityIndicator size={12} color="#0E47A1" style={{top:27.5,position:"absolute"}} />}
+</View>
+)}
+
+	  <Text numberOfLines={2} ellipsizeMode="tail" style={{fontSize:16,color:'black',lineHeight:25,marginTop:10,marginBottom:30,alignSelf:"center"}}>
+	   How was your experience with {e.captain.fullname}. ?	
+	  </Text> 
+
+	  <StarRating
+		  maxStars={5}
+		  starStyle={{borderWidth:0,marginLeft:10}}
+		  rating={starCount}
+		  selectedStar={(r) =>{!loaderr?setstarCount(r):{}}}
+		  fullStarColor={"#0E47A1"}
+		/>
+		
+	 {(starCount>0&&!loaderr)&&(
+	   <TouchableOpacity  onPress={()=>{onclickSubmitRate()}} style={styles.Button}>
+	 <Text style={styles.ButtonText}>SUBMIT</Text>
+	   </TouchableOpacity >
+	 )}
+
+	{(starCount>0&&loaderr)&&(
+	 <ActivityIndicator size={30} color="#0E47A1" style={{marginTop:30}}  />
+	 )}
+		 
+			 </View>
+
+  </Modal>
+			 ) 
+	}
+
+	const renderShowStar=()=>{
+		let arr=[];
+	
+		if(cr<=0){
+			for (let index = 0; index <5; index++) {
+			    arr.push(<utils.vectorIcon.AntDesign name="staro" size={17} color={"grey"}/>)
+			}
+		}else{
+			for (let index = 1; index <=5; index++) {
+				if(index<=cr){
+					arr.push(<utils.vectorIcon.AntDesign name="star" size={17} style={{opacity:0.8}} color={"#0E47A1"}/>)
+				}else{
+					arr.push(<utils.vectorIcon.AntDesign name="staro" size={17} style={{opacity:0.8}} color={"grey"}/>)
+				}
+			  
+			}
+		}
+
+		return arr
+		
+	
+		}
+
+		  const renderCaptain=()=>{
+			  return(
+	   <View style={{paddingVertical:20,borderBottomWidth: 0.5, borderBottomColor: 'grey', width: '100%', flexDirection: 'row'  ,paddingHorizontal:20,justifyContent:"space-between"}}>						
+	   {(!e.captain.profile_image)&&(<utils.vectorIcon.FontAwesome  name="user-circle" color="#0E47A1" size={60} />)}
+	   {(e.captain.profile_image&&e.captain.profile_image!=="")&&(
+	   <View style={{width:60,height:60,borderColor:"#0E47A1",borderRadius:30,borderWidth:1,alignItems:"center",justifyContent:"center"}}>
+	   <Image onLoad={()=>{setimgLoad(true)}}  style={{width:59,height:59,borderRadius:29.5}}  source={{uri:e.captain.profile_image}} />
+	   {imgLoad==false && <ActivityIndicator size={10} color="#0E47A1" style={{top:25,position:"absolute"}} />}
+		</View>
+	   )}
+							  <View style={{ height: '100%',width:"80%",left:5 }}>
+	  
+								  <Text numberOfLines={1} ellipsizeMode='tail' style={{ fontFamily: 'Inter-Bold', fontSize: 16, color: '#000',textTransform:"capitalize",lineHeight:20}}>{e.captain.fullname}</Text>
+								  <Text numberOfLines={1} ellipsizeMode='tail' style={{ fontFamily: 'Inter-Regular', fontSize: 12, color: 'grey',textTransform:"capitalize" ,lineHeight:20}}>{e.type.type} - {e.vehicle.color} {e.vehicle.car_name.name}</Text>
+								  <Text numberOfLines={1} ellipsizeMode='tail' style={{ fontFamily: 'Inter-Regular', fontSize: 12, color: 'grey',textTransform:"capitalize" ,lineHeight:20}}>{e.vehicle.registration_number}</Text>
+	  
+		   {ratetrip==false&& status=="ended" &&(
+		  <TouchableOpacity onPress={()=>onClickRate()} activeOpacity={0.7} style={{width:"100%",flexDirection:"row",justifyContent:"space-between",marginTop:10,alignItems:"center"}}>
+							  
+		  <View style={{width:"40%" }}>
+		  <Text numberOfLines={1} ellipsizeMode='tail' style={{ fontFamily: 'Inter-Regular', fontSize: 12, color: "#0E47A1",fontWeight:"700" ,textTransform:"capitalize" ,lineHeight:20}}>Rate this ride</Text>
+		  </View>
+	  
+		  <View style={{width:"50%" ,alignItems:"flex-end"}}>
+		  <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",width:"80%"}}>
+		  {renderShowStar()}
+		   </View>
+		  </View>
+	  
+		  </TouchableOpacity>
+						  )}
+
+       {ratetrip&& status=="ended"&&(
+		  <View  style={{width:"50%",marginTop:10}}>
+							  
+		  <View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",width:"80%"}}>
+		   {renderShowStar()}
+		   </View>
+		 
+		  </View>
+	  
+	 
+						  )}
+	  
+						   
+							  
+							  </View>
+		   </View>
+			  )
+		  }
+
+		  const renderServerErr=()=>{
+			return  (
+			  <View style={{marginTop:"60%"}}>
+			  <Text style={{color:"grey",fontSize:15,alignSelf:"center",marginBottom:5}}>Server not respond !</Text>
+			  <TouchableOpacity   onPress={()=>{ if(generalmanager.internet){setrefresh(true)}else{utils.AlertMessage("","Please connect internet !")} }}>
+			  <Text  style={{color:"red",fontSize:15,textDecorationLine:"underline",alignSelf:"center"}}>Retry</Text>
+			  </TouchableOpacity>
+			  </View>
+			)
+		  }
+
+		  const renderDataLoadeErr=()=>{
+			return  (
+				<View style={{marginTop:"60%"}}>
+				<Text style={{color:"grey",fontSize:15,alignSelf:"center",marginBottom:5}}>Data not load !</Text>
+				<TouchableOpacity   onPress={()=>{ if(generalmanager.internet){setrefresh(true)}else{utils.AlertMessage("","Please connect internet !")} }}>
+				<Text  style={{color:"red",fontSize:15,textDecorationLine:"underline",alignSelf:"center"}}>Retry</Text>
+				</TouchableOpacity>
+				</View>
+			)
+		  }
+	
+		const renderInternetErr=()=>{
+			return <Text style={{position:"absolute",top:"50%",color:"grey",fontSize:15,alignSelf:"center"}}>No internet connection !</Text>
+		  }
+	
+		  var  ttt ;
+		  var date;
+		  let createdAt;
+		  let distance;
+		  let rent;
+		  let totaltime;
+		  let ratetrip;
+		  let cr;
+		  let cc;
+		  let msg;
+		  let status;
+		  let pm;
+		  
+if(e){
+	  ttt =  moment(e.createdAt).format('hh:mm a')  
+	  date =  moment(e.createdAt).format("DD MMM Y");   //9 july 2021
+	  createdAt= date+", "+ttt
+	  rent=e.rent //total amount in trip ride fare
+      pm=e.payment_mode
+
+	  distance=e.distance.toFixed(1)
+
+	 status=e.status[e.status.length-1].status
+
+	 totaltime=0;
+
+	  ratetrip=true;
+	  cr=0; //cstmr rate
 	
 	if(status=="ended"){
 
-		if(e.rating.customer=="No feedback given"){
+		if(e.rating.captain=="No feedback given"){
 			ratetrip=false
+		}else{
+			cr=parseInt(e.rating.captain).toFixed()
 		}
 
 
@@ -89,8 +425,7 @@ const RideDetail = observer((props) => {
 	 
 	   }
 
-
-	let cc=0;  //colect cash
+	  cc=0;  //colect cash
 	if(pm=="cash"&& status=="ended" && trnsctn){
 	 if(trnsctn.debit==0 && trnsctn.credit==0){
 	   cc=e.rent;
@@ -103,69 +438,18 @@ const RideDetail = observer((props) => {
 	 }
 	}
 
-	let msg=""
+	  msg=""
 	if(trnsctn){
 		msg= trnsctn.debit>0?"PKR "+trnsctn.debit.toFixed()+" has added your wallet":trnsctn.credit>0?"PKR "+trnsctn.credit.toFixed()+" has cut your wallet":""
 	}
  
-
-
- 
-function secondsToHms(d) {
-  d = Number(d);
-  var h = Math.floor(d / 3600);
-  var m = Math.floor(d % 3600 / 60);
-  var s = Math.floor(d % 3600 % 60);
-
-  var hDisplay = h > 0 ? h + (h == 1 ? " h, " : " h, ") : "";
-  var mDisplay = m > 0 ? m + (m == 1 ? " m, " : " m, ") : "";
-  var sDisplay = s > 0 ? s + (s == 1 ? " s" : " s") : "";
-  return hDisplay + mDisplay + sDisplay; 
 }
 
-	const renderCaptain=()=>{
-		return(
- <View style={{paddingVertical:20,borderBottomWidth: 0.5, borderBottomColor: 'grey', width: '100%', flexDirection: 'row'  ,paddingHorizontal:20,justifyContent:"space-between"}}>						
- {(!e.captain.profile_image)&&(<utils.vectorIcon.FontAwesome  name="user-circle" color="#0E47A1" size={60} />)}
- {(e.captain.profile_image&&e.captain.profile_image!=="")&&(
- <View style={{width:60,height:60,borderColor:"#0E47A1",borderRadius:30,borderWidth:1,alignItems:"center",justifyContent:"center"}}>
- <Image onLoad={()=>{setimgLoad(true)}}  style={{width:59,height:59,borderRadius:29.5}}  source={{uri:e.captain.profile_image}} />
- {imgLoad==false && <ActivityIndicator size={10} color="#0E47A1" style={{top:25,position:"absolute"}} />}
-  </View>
- )}
-						<View style={{ height: '100%',width:"80%",left:5 }}>
+	// console.log("trs : ",trnsctn)
+//    console.log("trp : ",e.rating)
 
-							<Text numberOfLines={1} ellipsizeMode='tail' style={{ fontFamily: 'Inter-Bold', fontSize: 16, color: '#000',textTransform:"capitalize",lineHeight:20}}>{e.captain.fullname}</Text>
-							<Text numberOfLines={1} ellipsizeMode='tail' style={{ fontFamily: 'Inter-Regular', fontSize: 12, color: 'grey',textTransform:"capitalize" ,lineHeight:20}}>{e.type.type} - {e.vehicle.color} {e.vehicle.car_name.name}</Text>
-							<Text numberOfLines={1} ellipsizeMode='tail' style={{ fontFamily: 'Inter-Regular', fontSize: 12, color: 'grey',textTransform:"capitalize" ,lineHeight:20}}>{e.vehicle.registration_number}</Text>
-
-	 {ratetrip==false&&(
-	<TouchableOpacity onPress={()=>onClickRate()} activeOpacity={0.7} style={{width:"100%",flexDirection:"row",justifyContent:"space-between",marginTop:10,alignItems:"center"}}>
-						
-	<View style={{width:"40%" }}>
-	<Text numberOfLines={1} ellipsizeMode='tail' style={{ fontFamily: 'Inter-Regular', fontSize: 12, color: "#0E47A1",textTransform:"capitalize" ,lineHeight:20}}>Rate this ride</Text>
-	</View>
-
-	<View style={{width:"50%" ,alignItems:"flex-end"}}>
-	<View style={{flexDirection:"row",alignItems:"center",justifyContent:"space-between",width:"90%"}}>
-	 <utils.vectorIcon.AntDesign name="staro" size={17} color={"grey"}/>
-	 <utils.vectorIcon.AntDesign name="staro" size={17} color={"grey"}/>
-	 <utils.vectorIcon.AntDesign name="staro" size={17} color={"grey"}/>
-	 <utils.vectorIcon.AntDesign name="staro" size={17} color={"grey"}/>
-	 <utils.vectorIcon.AntDesign name="staro" size={17} color={"grey"}/>
-	 </View>
-	</View>
-
-	</TouchableOpacity>
-					)}
-
-					 
-						
-						</View>
-	 </View>
-		)
-	}
-
+ 
+ 
 	return (
 
 		<SafeAreaView style={styles.Container} >
@@ -178,9 +462,21 @@ function secondsToHms(d) {
 				<TouchableOpacity onPress={goBack} style={styles.BackButton}>
 					<Ionicons name={'arrow-back'} size={25} color={'#fff'} />
 				</TouchableOpacity>
-				<Text style={styles.HeaderText}>TRIP  {tid}</Text>
+				<Text style={styles.HeaderText}>TRIP  {trp.t_id}</Text>
 			</View>
-			<ScrollView>
+
+ {!generalmanager.internet   && !isserverErr && !loader  && e && <utils.TopMessage msg="No internet connection ! "/> } 
+ {!generalmanager.internet   &&  !isserverErr &&  (!e) && !loader && renderInternetErr()} 
+
+
+ 	<ScrollView>
+
+{isserverErr  &&  !loader && renderServerErr()}
+{!loader  &&  !e && !isserverErr && generalmanager.internet && renderDataLoadeErr()}
+{loader   &&   <ActivityIndicator style={{marginTop:"70%",alignSelf:"center"}} size={35} color={'#0E47A1'} />}
+
+{!loader && e && !isserverErr &&( 
+	<View>
 				<Image source={require('../../assets/images/map.jpg')}   blurRadius={2}  style={{ height: 200, width: '100%', resizeMode: 'contain' ,marginTop :-10}} />
 				<Text numberOfLines={1} ellipsizeMode='tail' style={{ marginLeft: 20,   fontSize: 12,marginTop:-5,color:"black"}}>{createdAt}</Text>
 				<View style={styles.Body}>
@@ -262,14 +558,17 @@ function secondsToHms(d) {
 					</View> )}	
 					</View>
 					)}
-				
-					
-  				
+								
 				  {renderCaptain()}
  					
 
 				</View>
-			</ScrollView>
+	</View>
+)}
+ 
+  </ScrollView>
+
+	 {e && renderRatingSheet()}
 		</SafeAreaView >
 	);
 })
