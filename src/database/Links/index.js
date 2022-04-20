@@ -1,39 +1,51 @@
- 
-// const link = "https://c0a23827e3e8.ngrok.io/"
-
 //local link
-const links = "http://192.168.10.16:3001/"
-const socket="http://192.168.10.16:3001"
+// const links = "http://192.168.10.8:3001/";
+// const socket = "http://192.168.10.8:3001";
 
-const login = "user/loginCustomer"
-const signup="user/addCustomer"
-const updateUser="user/updateUser/"
+//online link
+const links = "http://ec2-13-233-155-200.ap-south-1.compute.amazonaws.com/";
+const socket = "http://ec2-13-233-155-200.ap-south-1.compute.amazonaws.com";
 
-const addtrip="trip/addTripRequest"
+const login = "user/loginCustomer";
+const signup = "user/addCustomer";
+const updateUser = "user/updateUser/";
 
-const getVehicleType="vehicle_type"
+const addtrip = "trip/addTripRequest";
 
-const uploadFile="upload/uploadFile"
+const getVehicleType = "vehicle_type";
 
-const cancelTrip="trip/cancelTrip/"
+const uploadFile = "upload/uploadFile";
 
-const getUserById="user?_id="
+const cancelTrip = "trip/cancelTrip/";
 
-const getallTripsbyuid="trip/getTrips?customer="
+const getUserById = "user?_id=";
 
-const getTripsbyId="trip/getTrips?_id="
+const getallTripsbyuid = "trip/getTrips?customer=";
 
-const getAvgRating="user/getAverageRating?user="
+const getTripsbyId = "trip/getTrips?_id=";
 
-const addTripRating="trip/rateCaptain/"
+const getAvgRating = "user/getAverageRating?user=";
 
-const getcustomerWalletinfo="transaction_history/getHistoryByUser?user="
+const addTripRating = "trip/rateCaptain/";
 
- 
-
+const getcustomerWalletinfo = "transaction_history/getHistoryByUser?user=";
 
 // const getAlbumsById = "customer/albums?customer_id=" //login cstmr buy albums
- 
 
-
-export  default link ={links,login,signup,updateUser,uploadFile,addtrip,getVehicleType,getUserById,cancelTrip,getTripsbyId,getAvgRating,addTripRating,getcustomerWalletinfo,socket,getallTripsbyuid}
+export default link = {
+  links,
+  login,
+  signup,
+  updateUser,
+  uploadFile,
+  addtrip,
+  getVehicleType,
+  getUserById,
+  cancelTrip,
+  getTripsbyId,
+  getAvgRating,
+  addTripRating,
+  getcustomerWalletinfo,
+  socket,
+  getallTripsbyuid,
+};
