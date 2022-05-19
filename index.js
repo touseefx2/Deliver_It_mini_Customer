@@ -31,12 +31,14 @@ import PushNotificationIOS from "@react-native-community/push-notification-ios";
 import { showNotification } from "./src/services/Notification/showNotification";
 import messaging from "@react-native-firebase/messaging";
 import RegisterProfile from "./src/screens/RegisterProfile";
+import { notificationmanager } from "./src/managers/NotificationManager";
 
 async function hydrateStores() {
   const hydrate = create({ storage: AsyncStorage });
   await hydrate("usermanager", usermanager);
   await hydrate("requestmanager", requestmanager);
   await hydrate("carmanager", carmanager);
+  await hydrate("notificationmanager", notificationmanager);
 }
 
 messaging().onMessage(async (notification) => {
@@ -67,7 +69,7 @@ messaging().onMessage(async (notification) => {
 
   if (
     title == "Trip has been canceled." ||
-    title == "Your captain is arrived." ||
+    title == "Your captain has arrived." ||
     title == "Your captain is on his way" ||
     title == "Your captain has started ride." ||
     title == "Your trip has ended."

@@ -48,28 +48,14 @@ import utilsS from "../../utilsS/index";
 import db from "../../database/index";
 import { goToLogin } from "../../navigation";
 import { carmanager } from "../../managers/CarManager";
+const ENDPOINT = "http://ec2-13-233-155-200.ap-south-1.compute.amazonaws.com";
+// import socketIOClient from "socket.io-client";
+// const socket = socketIOClient(ENDPOINT);
 import io from "socket.io-client";
+const socket = io(ENDPOINT);
 import Geocoder from "react-native-geocoding";
 import { isPointInPolygon } from "geolib";
-
-const polygons = [
-  {
-    _id: 1279,
-    latlngs: [
-      { latitude: 33.69518355093566, longitude: 73.00967558914313 },
-      { latitude: 33.66815034810782, longitude: 73.08854637327863 },
-      { latitude: 33.64148371451319, longitude: 73.02040609154068 },
-    ],
-  },
-  {
-    _id: 1465,
-    latlngs: [
-      { latitude: 33.615977405564195, longitude: 73.19976784477439 },
-      { latitude: 33.61767126619337, longitude: 73.31367403490933 },
-      { latitude: 33.5147084660298, longitude: 73.33706544426573 },
-    ],
-  },
-];
+import NetInfo from "@react-native-community/netinfo";
 
 interface Props {}
 
@@ -84,11 +70,17 @@ const Search = observer((props: Props) => {
   let req = requestmanager.req;
   let vt = props.pickupType || "";
   let pickupType = vt.type || "";
+  // let polygons = usermanager.polygons || [];
 
   const window = Dimensions.get("window");
   const { width, height } = window;
   const LATITUDE_DELTA = 0.0922;
   const LONGITUDE_DELTA = LATITUDE_DELTA + width / height;
+
+  const [polygons, setpolygons] = useState([]);
+  useEffect(() => {
+    setpolygons(usermanager.polygons);
+  }, [usermanager.polygons]);
 
   const [isNoarea, setisNoarea] = useState(false); //rate captain sheet
 
@@ -218,23 +210,22 @@ const Search = observer((props: Props) => {
 
   let watchID = null;
 
-  const socket = io(db.link.socket);
   const SocketOn = () => {
     console.log("socket on");
     socket.on("send_location_to_client", (l) => {
+      console.log("recieve captn loc : ", l);
       const r = {
         latitude: l.coordinates[1],
         longitude: l.coordinates[0],
         latitudeDelta: LATITUDE_DELTA,
         longitudeDelta: LONGITUDE_DELTA,
       };
-      console.log("rcl : ", l);
-
       setcl(r);
     });
   };
   const SocketOff = () => {
     console.log("socket off");
+
     socket.emit("stop_sharing_location", { socket: socket.id });
   };
 
@@ -781,7 +772,6 @@ const Search = observer((props: Props) => {
           requestmanager.setreq(response.data);
           setloaderB(false);
           setchalo(true);
-
           return;
         }
 
@@ -1026,20 +1016,25 @@ const Search = observer((props: Props) => {
     // }
 
     if (chalo && rbsheetUp) {
+      console.log("1");
       setrbsheetUp(false);
     }
 
     if (chalo && acceptRequest == "f") {
+      console.log("2");
     }
 
     if (chalo && acceptRequest == true) {
+      console.log("3");
     }
 
     if (cashDialog) {
+      console.log("4");
       setcashDialog(false);
     }
 
     if (ridedetail) {
+      console.log("5");
       setridedetail(false);
     }
 
@@ -1051,6 +1046,7 @@ const Search = observer((props: Props) => {
       !chalo &&
       acceptRequest == "f"
     ) {
+      console.log("6");
       BackHandler.removeEventListener(
         "hardwareBackPress",
         handleBackButtonClickk
@@ -1069,6 +1065,7 @@ const Search = observer((props: Props) => {
       !chalo &&
       acceptRequest == "f"
     ) {
+      console.log("7");
       setispickup(false);
 
       let mark = {
@@ -1085,6 +1082,7 @@ const Search = observer((props: Props) => {
     }
 
     if (acceptRequest == true && endride) {
+      console.log("8");
       clearall();
       utils.ToastAndroid.ToastAndroid_SB("Trip Complete :)");
     }
@@ -1259,37 +1257,47 @@ const Search = observer((props: Props) => {
   };
 
   const confirmDropOff = () => {
-    if (generalmanager.internet && isNoarea) {
-      utils.AlertMessage("", "Deliverit mini dose not operate in this area");
-      return;
-    }
+    NetInfo.fetch().then((state) => {
+      if (state.isConnected) {
+        // if (isNoarea) {
+        //   utils.AlertMessage(
+        //     "",
+        //     "Deliverit mini does not operate in this area"
+        //   );
+        //   return;
+        // }
 
-    if (generalmanager.internet) {
-      setisdropoff(true);
-      seti(0);
-      setloader(true);
-    } else {
-      utils.AlertMessage("", "Please connect internet");
-    }
+        setisdropoff(true);
+        seti(0);
+        setloader(true);
+      } else {
+        utils.AlertMessage("", "Please connect internet");
+      }
+    });
   };
 
   const confirmPickup = () => {
-    if (generalmanager.internet && isNoarea) {
-      utils.AlertMessage("", "Deliverit mini dose not operate in this area");
-      return;
-    }
+    NetInfo.fetch().then((state) => {
+      if (state.isConnected) {
+        // if (isNoarea) {
+        //   utils.AlertMessage(
+        //     "",
+        //     "Deliverit mini does not operate in this area"
+        //   );
+        //   return;
+        // }
 
-    if (generalmanager.internet) {
-      fetchDistanceBetweenPointsOnline(
-        pickup.location.latitude,
-        pickup.location.longitude,
-        dropoff.location.latitude,
-        dropoff.location.longitude,
-        "picTodropDis"
-      );
-    } else {
-      utils.AlertMessage("", "Please connect internet");
-    }
+        fetchDistanceBetweenPointsOnline(
+          pickup.location.latitude,
+          pickup.location.longitude,
+          dropoff.location.latitude,
+          dropoff.location.longitude,
+          "picTodropDis"
+        );
+      } else {
+        utils.AlertMessage("", "Please connect internet");
+      }
+    });
   };
 
   const zoomin = () => {
@@ -1805,6 +1813,25 @@ const Search = observer((props: Props) => {
     setmr(true);
   };
 
+  // const polygons = [
+  //   {
+  //     _id: 1279,
+  //     latlngs: [
+  //       { latitude: 33.69518355093566, longitude: 73.00967558914313 },
+  //       { latitude: 33.66815034810782, longitude: 73.08854637327863 },
+  //       { latitude: 33.64148371451319, longitude: 73.02040609154068 },
+  //     ],
+  //   },
+  //   {
+  //     _id: 1465,
+  //     latlngs: [
+  //       { latitude: 33.615977405564195, longitude: 73.19976784477439 },
+  //       { latitude: 33.61767126619337, longitude: 73.31367403490933 },
+  //       { latitude: 33.5147084660298, longitude: 73.33706544426573 },
+  //     ],
+  //   },
+  // ];
+
   // render section
 
   const rednerDot = () => {
@@ -1845,7 +1872,7 @@ const Search = observer((props: Props) => {
             }}
           >
             <Text style={{ fontSize: 12, color: "black", borderRadius: 5 }}>
-              Deliverit mini dose not operate in this area
+              Deliverit mini does not operate in this area
             </Text>
           </View>
         )}
@@ -2315,7 +2342,7 @@ const Search = observer((props: Props) => {
       !arrive && !startride
         ? "Get ready, your Captain is on the way"
         : arrive && !startride
-        ? "Capatian is waiting for you in pickup location"
+        ? "Captain is waiting for you at pickup location"
         : "You're on your way";
 
     if (!endride) {
@@ -3259,7 +3286,7 @@ const Search = observer((props: Props) => {
         closeOnDragDown={false}
         closeOnPressMask={false}
         c={""}
-        chnageru={() => setrbsheetUp(false)}
+        changeru={() => setrbsheetUp(false)}
         closeOnPressBack={true}
         keyboardAvoidingViewEnabled={true}
         animationType="slide"
@@ -3689,14 +3716,15 @@ const Search = observer((props: Props) => {
           // scrollDuringRotateOrZoomEnabled={true}
           // onRegionChange={(region) => setPosition(region)}
         >
-          {polygons.map((polygon) => (
-            <Polygon
-              key={polygon._id}
-              coordinates={polygon.latlngs}
-              fillColor="rgba(0,0,0,0.1)"
-              strokeColor="silver"
-            />
-          ))}
+          {polygons.length > 0 &&
+            polygons.map((polygon) => (
+              <Polygon
+                key={polygon._id}
+                coordinates={polygon.latlngs}
+                fillColor="rgba(0,0,0,0.1)"
+                strokeColor="silver"
+              />
+            ))}
 
           {!ieo(cp) && currentPosMarker()}
           {acceptRequest == true && req && !endride && currentCaptainMarker()}

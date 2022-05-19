@@ -6,19 +6,33 @@ import {
   Image,
   ActivityIndicator,
   SafeAreaView,
+  Platform,
 } from "react-native";
 import { usermanager } from "../../managers/UserManager";
 import { observer } from "mobx-react";
-import { Navigation } from "react-native-navigation";
 import styles from "./styles";
-import LinearGradient from "react-native-linear-gradient";
 import { gotoHome, goToLogin } from "../../navigation";
-import utils from "../../utils";
 import NetInfo from "@react-native-community/netinfo";
 import { generalmanager } from "../../managers/generalManager";
 import { requestmanager } from "../../managers/requestManager";
-import { ROOT_NAV_ID } from "../../navigation";
 import PushNotification from "react-native-push-notification";
+import messaging from "@react-native-firebase/messaging";
+import DeviceInfo from "react-native-device-info";
+
+const getToken = async () => {
+  let tok = await messaging().getToken();
+  console.log("Token found to update : ", tok);
+  usermanager.addnotificationToken(tok);
+};
+
+Platform.OS === "android"
+  ? PushNotification.configure({
+      onRegister: function (token) {
+        usermanager.addnotificationToken(token.token);
+        console.log("Token found to update : ", token);
+      },
+    })
+  : getToken();
 
 const SplashScreen = observer(() => {
   const setispickup = (c) => {
@@ -48,7 +62,22 @@ const SplashScreen = observer(() => {
     }
   };
 
+  const checkApiLevel = () => {
+    DeviceInfo.getApiLevel().then((apiLevel) => {
+      generalmanager.setapiLevel(apiLevel);
+    });
+  };
+
   useEffect(() => {
+    checkApiLevel();
+    if (usermanager.user) {
+      NetInfo.fetch().then((state) => {
+        if (state.isConnected) {
+          console.log("user true Get all data once");
+          usermanager.getAllData();
+        }
+      });
+    }
     NetInfo.addEventListener(handleConnectivityChange);
     setTimeout(() => {
       if (usermanager.user) {
