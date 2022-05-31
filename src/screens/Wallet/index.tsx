@@ -22,6 +22,7 @@ import RBSheet from "react-native-raw-bottom-sheet";
 import { RadioButton } from "react-native-paper";
 import { usermanager } from "../../managers/UserManager";
 import { generalmanager } from "../../managers/generalManager";
+import { responsiveFontSize } from "react-native-responsive-dimensions";
 interface Props {}
 const Wallet = observer((props: Props) => {
   let uwbalance = usermanager.uwbalance;
@@ -72,22 +73,91 @@ const Wallet = observer((props: Props) => {
     <SafeAreaView style={styles.Container}>
       <StatusBar
         animated={true}
-        barStyle="dark-content"
-        backgroundColor={styles.Status.backgroundColor}
+        barStyle="light-content"
+        backgroundColor={"#0E47A1"}
       />
       <View style={styles.Header}>
         <TouchableOpacity onPress={goBack} style={styles.MenuButton}>
           <MaterialIcons
             name={"arrow-back-ios"}
-            size={16}
-            color={"#000"}
+            size={20}
+            color={"white"}
             style={{ marginTop: 9, marginLeft: 10 }}
           />
         </TouchableOpacity>
       </View>
-      <ScrollView>
-        <View style={styles.Body}>
-          <View style={styles.Headerr}>
+
+      <View style={styles.Headerr}>
+        <Text
+          style={{
+            color: "white",
+            fontFamily: "Inter-Bold",
+            fontSize: responsiveFontSize(4),
+          }}
+        >
+          Available Credit
+        </Text>
+      </View>
+
+      {/* <ScrollView> */}
+      <View style={styles.Body}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            width: "90%",
+            alignSelf: "center",
+          }}
+        >
+          <View
+            style={{
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "white",
+              borderRadius: 50,
+              width: 100,
+              height: 100,
+            }}
+          >
+            <Text
+              style={{
+                color: "black",
+                fontFamily: "Inter-Bold",
+                fontSize: responsiveFontSize(2.3),
+              }}
+            >
+              PKR
+            </Text>
+          </View>
+
+          <View
+            style={{
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "white",
+              borderRadius: 100,
+              width: 200,
+              height: 200,
+              left: -15,
+              paddingHorizontal: 20,
+            }}
+          >
+            <Text
+              numberOfLines={3}
+              ellipsizeMode="tail"
+              style={{
+                color: "black",
+                fontFamily: "Inter-Bold",
+                fontSize: responsiveFontSize(4.5),
+                lineHeight: 45,
+              }}
+            >
+              {uwbalance.toFixed()}
+            </Text>
+          </View>
+        </View>
+
+        {/* <View style={styles.Headerr}>
             <View>
               <Text style={{ color: "grey", fontFamily: "Inter-Regular" }}>
                 Available Credit
@@ -150,10 +220,10 @@ const Wallet = observer((props: Props) => {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </ScrollView>
-      <RBSheet
+          </View> */}
+      </View>
+      {/* </ScrollView> */}
+      {/* <RBSheet
         ref={refRBSheet}
         closeOnDragDown={true}
         closeOnPressMask={true}
@@ -294,7 +364,7 @@ const Wallet = observer((props: Props) => {
             </Text>
           </TouchableOpacity>
         </View>
-      </RBSheet>
+      </RBSheet> */}
     </SafeAreaView>
   );
 });

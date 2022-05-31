@@ -68,13 +68,13 @@ const Profile = observer((props: Props) => {
 
   return (
     <SafeAreaView style={styles.Container}>
-      <utilsS.LogoutMessage
+      {/* <utilsS.LogoutMessage
         isMessage={isMessage}
         setisMessage={(c) => setisMessage(c)}
         logout={() => Logout()}
         title="Are you sure you want to signout ?"
         title2="Signout ..."
-      />
+      /> */}
 
       <StatusBar
         animated={true}
@@ -141,7 +141,7 @@ const Profile = observer((props: Props) => {
             <Text style={{ color: "black" }}> Edit </Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity onPress={gotoNotifications} style={styles.Box}>
+        {/* <TouchableOpacity onPress={gotoNotifications} style={styles.Box}>
           <View style={styles.Icon}>
             <Icon name="bell" size={30} color={"grey"} />
           </View>
@@ -184,7 +184,7 @@ const Profile = observer((props: Props) => {
           <View style={styles.RightBox}>
             <Text style={styles.Title}>Sign out</Text>
           </View>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </ScrollView>
     </SafeAreaView>
   );

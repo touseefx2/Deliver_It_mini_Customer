@@ -4,19 +4,17 @@ const windowHeight = Dimensions.get("window").height;
 const styles = StyleSheet.create({
   Container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#0E47A1",
+    alignItems: "center",
+    justifyContent: "center",
   },
   Status: {
     backgroundColor: "#fff",
   },
-  Body: {
-    width: "100%",
-    alignSelf: "center",
-  },
+  Body: {},
   MenuButton: {
-    height: 30,
-    width: 30,
-    left: 15,
+    height: 35,
+    width: 35,
   },
   Title: {
     color: "grey",
@@ -26,20 +24,23 @@ const styles = StyleSheet.create({
     right: 20,
   },
   Header: {
-    backgroundColor: "#fff",
-    paddingTop: 10,
+    backgroundColor: "#0E47A1",
     height: 42,
     alignItems: "center",
     flexDirection: "row",
     alignContent: "center",
+    position: "absolute",
+    top: 15,
+    left: 15,
   },
   Headerr: {
-    height: 50,
+    backgroundColor: "#0E47A1",
     width: "90%",
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 20,
     alignSelf: "center",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "absolute",
+    top: 100,
   },
   RightHeader: {
     height: "100%",

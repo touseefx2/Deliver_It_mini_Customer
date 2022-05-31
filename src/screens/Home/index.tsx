@@ -36,6 +36,7 @@ import Modal from "react-native-modal";
 import Geolocation from "react-native-geolocation-service";
 import { requestmanager } from "../../managers/requestManager";
 import NetInfo from "@react-native-community/netinfo";
+import utilsS from "../../utilsS";
 
 interface Props {}
 const Home = observer((props: Props) => {
@@ -454,9 +455,22 @@ const Home = observer((props: Props) => {
     });
   };
 
+  const Logout = () => {
+    usermanager.attemptToLogout();
+    usermanager.setLogoutMsg(false);
+    goToLogin();
+  };
+
   return (
     <SideMenuView style={{ flex: 1 }} drawerName={"customDrawer"}>
       {renderServerError()}
+      <utilsS.LogoutMessage
+        isMessage={usermanager.logoutMsg}
+        setisMessage={(c) => usermanager.setLogoutMsg(c)}
+        logout={() => Logout()}
+        title="Are you sure you want to signout ?"
+        title2="Signout ..."
+      />
       <utils.Loader l={true} loader={load} />
       <SafeAreaView style={styles.Container}>
         <StatusBar
@@ -556,7 +570,7 @@ const Home = observer((props: Props) => {
                     marginLeft: 5,
                   }}
                 >
-                  Enter your dstination
+                  Enter your destination
                 </Text>
                 <FontAwesome name="search" color="#0E47A1" size={20} />
               </TouchableOpacity>

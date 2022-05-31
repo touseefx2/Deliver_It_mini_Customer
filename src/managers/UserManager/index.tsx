@@ -143,6 +143,9 @@ class UserManager {
 
   @observable cl = "";
 
+  @observable cancelationCharges = 0;
+  @observable baseCharges = 0;
+
   @persist("object") polygons = [];
 
   @persist("object") @observable user = false;
@@ -165,9 +168,26 @@ class UserManager {
   @persist @observable uwbalance = 0; //user wallet balance
   @observable trnsctn = [];
 
+  @observable logoutMsg = false;
+
   @action.bound
   settrnsctn(val) {
     this.trnsctn = val;
+  }
+
+  @action.bound
+  setLogoutMsg(val) {
+    this.logoutMsg = val;
+  }
+
+  @action.bound
+  setcanclchrg(val) {
+    this.cancelationCharges = val;
+  }
+
+  @action.bound
+  setbasechrg(val) {
+    this.baseCharges = val;
   }
 
   @action.bound
@@ -573,10 +593,38 @@ class UserManager {
   };
 
   @action.bound
+  attemptToGetCharges = () => {
+    const header = this.authToken;
+
+    // method, path, body, header
+    db.api
+      .apiCall("get", db.link.getCharges, false, header)
+      .then((response) => {
+        console.log("get charges response : ", response.data);
+
+        if (response.data) {
+          if (response.data[0]) {
+            this.setcanclchrg(response.data[0].cancellation_charges);
+            this.setbasechrg(response.data[0].base_charges);
+          }
+
+          return;
+        }
+
+        return;
+      })
+      .catch((e) => {
+        console.error("get charges  catch error : ", e);
+        return;
+      });
+  };
+
+  @action.bound
   getAllData = () => {
     this.setisGetAllDatainSplash(true);
     this.attemptToGetUser();
     this.attemptToGetPloygons();
+    this.attemptToGetCharges();
     notificationmanager.attemptToGetNotifications();
     // carStore.carStore.attemptToGetCar();
     // carStore.carStore.attemptToGetALLCarNames();

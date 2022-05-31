@@ -11,6 +11,7 @@ import {
   SafeAreaView,
   BackHandler,
   Alert,
+  Share,
 } from "react-native";
 import { observer } from "mobx-react";
 import { Navigation } from "react-native-navigation";
@@ -48,14 +49,19 @@ import utilsS from "../../utilsS/index";
 import db from "../../database/index";
 import { goToLogin } from "../../navigation";
 import { carmanager } from "../../managers/CarManager";
-const ENDPOINT = "http://ec2-13-233-155-200.ap-south-1.compute.amazonaws.com";
+const ENDPOINT = "https://deliveritbackend.herokuapp.com";
 // import socketIOClient from "socket.io-client";
 // const socket = socketIOClient(ENDPOINT);
 import io from "socket.io-client";
-const socket = io(ENDPOINT);
+
 import Geocoder from "react-native-geocoding";
 import { isPointInPolygon } from "geolib";
 import NetInfo from "@react-native-community/netinfo";
+import GestureRecognizer, {
+  swipeDirections,
+} from "react-native-swipe-gestures";
+import themes from "../../themes";
+import theme from "../../theme";
 
 interface Props {}
 
@@ -66,7 +72,7 @@ function ieo(obj) {
 
 const Search = observer((props: Props) => {
   const gapikey = "AIzaSyAJeMjKbTTRvoZJe0YoJc48VhaqbtoTmug";
-
+  const socket = io(ENDPOINT);
   let req = requestmanager.req;
   let vt = props.pickupType || "";
   let pickupType = vt.type || "";
@@ -91,25 +97,30 @@ const Search = observer((props: Props) => {
   const [cp, setcp] = useState({}); //device current position
   const [cl, setcl] = useState(false); //captain location
 
+  const [captains, setcaptains] = useState([]); //captain location
+
   let rfalsetime = 1500;
   let cordmovetime = 500;
 
   let maxzoom = 1200;
   let minzoom = 2.5;
 
+  console.log("cncltn chrg : ", usermanager.cancelationCharges);
+  console.log("base chrg : ", usermanager.baseCharges);
   //after accept
   let ctnotcuttimeba = 10; //2min or 120 sec no cut charges if user cancel trip before 2 min so not cut charges otherwise cut charges
-  let ctcfba = 40; //fine
-  let ctcfaa = 90;
+  let ctcfba = usermanager.cancelationCharges; //fine //40
+  let ctcfaa = usermanager.baseCharges; //90
 
   const [srid, setsrid] = useState(vt._id); //selected vchl object
   const [sr, setsr] = useState(pickupType); //selected ride
   const [rr, setrr] = useState(vt.rent); //selected ride rs
+  const [vwtngchrg, setvwtngchrg] = useState(vt.waiting_charges); //selected ride rs
 
   const [ridedetail, setridedetail] = useState(false);
 
   const [cashDialog, setcashDialog] = useState(false);
-  const [cashSwitch, setcashSwitch] = useState(false);
+  const [cashSwitch, setcashSwitch] = useState(false); //walet on
 
   const [starCount, setstarCount] = useState(0);
 
@@ -156,6 +167,7 @@ const Search = observer((props: Props) => {
   let endride = requestmanager.endride;
   let ar = requestmanager.ar;
   let td = requestmanager.td;
+  let traveltime = requestmanager.traveltime;
   let tpd = requestmanager.tpd;
 
   const setgro = (c) => {
@@ -197,6 +209,9 @@ const Search = observer((props: Props) => {
   const settd = (c) => {
     requestmanager.settd(c);
   };
+  const settraveltime = (c) => {
+    requestmanager.settraveltime(c);
+  };
   const settpd = (c) => {
     requestmanager.settpd(c);
   };
@@ -230,6 +245,63 @@ const Search = observer((props: Props) => {
   };
 
   // useeffects section
+
+  useEffect(() => {
+    if (cashDialog) {
+      NetInfo.fetch().then((state) => {
+        if (state.isConnected) {
+          usermanager.getmyWalletinfo();
+        }
+      });
+    }
+  }, [cashDialog]);
+
+  useEffect(() => {
+    NetInfo.fetch().then((state) => {
+      if (state.isConnected) {
+        if (!ieo(cp) && ieo(region) && !ispickup) {
+          attemptToGetCaptains(cp);
+        }
+
+        if (!ieo(cp) && !ieo(region) && !ispickup) {
+          attemptToGetCaptains(region.location);
+        }
+      }
+    });
+  }, [cp, region, ispickup]);
+
+  const attemptToGetCaptains = (loc) => {
+    setcaptains([]);
+    const header = usermanager.authToken;
+    let url = `?longitude=${loc.longitude}&latitude=${loc.latitude}`;
+    // console.log("nearest captains url: ", db.link.getAllCaptainsCAR + url);
+    // method, path, body, header
+    db.api
+      .apiCall("get", db.link.getAllCaptainsCAR + url, false, header)
+      .then((response) => {
+        console.log("nearest captains car response : ", response);
+
+        if (response.message == "No records found") {
+          setcaptains([]);
+          return;
+        }
+
+        if (response.data) {
+          setcaptains(response.data);
+          return;
+        }
+
+        return;
+      })
+      .catch((e) => {
+        console.error("nearest captains car error : ", e);
+        return;
+      });
+  };
+
+  console.log("captns  cars available : ", captains.length);
+  // console.log("region : ", region);
+  // console.log("dropoff : ", dropoff);
 
   useEffect(() => {
     if (req && !ieo(cp)) {
@@ -295,6 +367,17 @@ const Search = observer((props: Props) => {
     };
   }, []);
 
+  const addBackHandler = () => {
+    BackHandler.addEventListener("hardwareBackPress", handleBackButtonClickk);
+  };
+
+  const removeBackHandler = () => {
+    BackHandler.removeEventListener(
+      "hardwareBackPress",
+      handleBackButtonClickk
+    );
+  };
+
   useEffect(() => {
     if (
       isdropoff ||
@@ -305,21 +388,15 @@ const Search = observer((props: Props) => {
       acceptRequest == true ||
       rbsheetUp
     ) {
-      BackHandler.addEventListener("hardwareBackPress", handleBackButtonClickk);
+      addBackHandler();
     }
 
     if (!isdropoff) {
-      BackHandler.removeEventListener(
-        "hardwareBackPress",
-        handleBackButtonClickk
-      );
+      removeBackHandler();
     }
 
     return () => {
-      BackHandler.removeEventListener(
-        "hardwareBackPress",
-        handleBackButtonClickk
-      );
+      removeBackHandler();
     };
   }, [
     isdropoff,
@@ -379,13 +456,13 @@ const Search = observer((props: Props) => {
 
     if (!ispickup) {
       settd("");
+      settraveltime("");
     }
   }, [ispickup, chalo]);
 
   useEffect(() => {
     if (chalo) {
       setrbsheetUp(false);
-      rBSheet?.current?.open();
 
       mapRef?.current?.animateToRegion(
         {
@@ -427,7 +504,7 @@ const Search = observer((props: Props) => {
     setendride(false);
     requestmanager.setar(0);
     rBSheetc?.current?.close();
-    rBSheet?.current?.close();
+
     setgro(false);
     setgrtime("");
     setstarCount(0);
@@ -440,6 +517,7 @@ const Search = observer((props: Props) => {
     setisdropoff(false);
     setispickup(false);
     settd("");
+    settraveltime("");
     SocketOff();
     setimgLoad(false);
     setimgLoadd(false);
@@ -449,7 +527,6 @@ const Search = observer((props: Props) => {
   useEffect(() => {
     if (acceptRequest == true && req) {
       setrbsheetUp(false);
-      rBSheet?.current?.close();
 
       setgrtime("");
 
@@ -583,6 +660,18 @@ const Search = observer((props: Props) => {
   }, [loader]);
 
   // method section
+
+  function secondsToHms(d) {
+    d = Number(d);
+    var h = Math.floor(d / 3600);
+    var m = Math.floor((d % 3600) / 60);
+    var s = Math.floor((d % 3600) % 60);
+
+    var hDisplay = h > 0 ? h + (h == 1 ? " hr, " : " hr, ") : "";
+    var mDisplay = m > 0 ? m + (m == 1 ? " min, " : " min, ") : "";
+    var sDisplay = s > 0 ? s + (s == 1 ? " sec" : " sec") : "";
+    return hDisplay + mDisplay + sDisplay;
+  }
 
   const locationEnabler = () => {
     RNAndroidLocationEnabler.promptForEnableLocationIfNeeded({
@@ -748,6 +837,7 @@ const Search = observer((props: Props) => {
       type: srid,
       distance: td,
       payment_mode: pm,
+      deduct_from_wallet: cashSwitch,
     };
     const header = usermanager.authToken;
     console.log("addtrip body data : ", bodyData);
@@ -835,7 +925,11 @@ const Search = observer((props: Props) => {
 
   const onClickChalo = () => {
     if (generalmanager.internet) {
-      if (td != "") {
+      if (td >= 0) {
+        if (td < 0.5) {
+          Alert.alert("", "Cannot book your ride, distance is too short");
+          return;
+        }
         onaddTrip();
       } else {
         utils.AlertMessage(
@@ -873,13 +967,20 @@ const Search = observer((props: Props) => {
             if (res) {
               let distanceInMeter = res.rows[0].elements[0].distance.value; //in meter
               let distanceInKm = distanceInMeter / 1000; //in meter to km
+
+              var timeSecond = res.rows[0].elements[0].duration.value;
+
               settd(distanceInKm);
+              settraveltime(timeSecond);
               setispickup(true);
+              setcaptains([]);
               return;
             }
           })
           .catch((error) => {
             setl(false);
+            settd("");
+            settraveltime("");
             utils.AlertMessage(
               "fetchdsistancematric api error ",
               "Network request failed"
@@ -889,7 +990,9 @@ const Search = observer((props: Props) => {
           });
       } catch (error) {
         setl(false);
-        console.log("fetchdis api error ", error);
+        settd("");
+        settraveltime("");
+        console.log("fetchdsistancematric catch error ", error);
       }
     } else {
       try {
@@ -923,49 +1026,79 @@ const Search = observer((props: Props) => {
     }
   };
 
+  const attemptToGetCharges = () => {
+    const header = usermanager.authToken;
+
+    // method, path, body, header
+    db.api
+      .apiCall("get", db.link.getCharges, false, header)
+      .then((response) => {
+        console.log("get charges response : ", response.data);
+
+        if (response.data) {
+          if (response.data[0]) {
+            usermanager.setcanclchrg(response.data[0].cancellation_charges);
+            usermanager.setbasechrg(response.data[0].base_charges);
+
+            ctcfba = response.data[0].cancellation_charges; //fine //40
+            ctcfaa = response.data[0].base_charges; //90
+
+            let ctt = new Date();
+            let at = moment(atime).format("hh:mm:ss a");
+            let ct = moment(ctt).format("hh:mm:ss a");
+
+            var acptTime = moment(at, "HH:mm:ss a");
+            var crntTime = moment(ct, "HH:mm:ss a");
+            var duration = moment.duration(crntTime.diff(acptTime));
+            var sec = parseInt(duration.asSeconds());
+            let cf = sec <= ctnotcuttimeba ? 0 : !arrive ? ctcfba : ctcfaa;
+
+            if (acceptRequest == true && !arrive && !startride) {
+              onClickcancelTrip(
+                "Emergency (Canceling before arrive captain)",
+                sec,
+                sec == 0 ? sec : cf
+              );
+              return;
+            }
+
+            if (acceptRequest == true && arrive && !startride) {
+              onClickcancelTrip(
+                "Emergency (Canceling after arrive captain)",
+                sec,
+                sec == 0 ? sec : cf
+              );
+              return;
+            }
+
+            if (acceptRequest == true && arrive && startride) {
+              onClickcancelTrip(
+                "Emergency (Canceling after start ride captain)",
+                sec,
+                sec == 0 ? sec : cf
+              );
+              return;
+            }
+          }
+
+          return;
+        }
+
+        return;
+      })
+      .catch((e) => {
+        console.error("get charges  catch error : ", e);
+        return;
+      });
+  };
+
   const cancelRide = () => {
     if (generalmanager.internet) {
       if (acceptRequest == "f") {
         onClickcancelTrip("No need (Canceling before accept captain)", 0, 0);
         return;
       }
-
-      let ctt = new Date();
-      let at = moment(atime).format("hh:mm:ss a");
-      let ct = moment(ctt).format("hh:mm:ss a");
-
-      var acptTime = moment(at, "HH:mm:ss a");
-      var crntTime = moment(ct, "HH:mm:ss a");
-      var duration = moment.duration(crntTime.diff(acptTime));
-      var sec = parseInt(duration.asSeconds());
-      let cf = sec <= ctnotcuttimeba ? 0 : !arrive ? ctcfba : ctcfaa;
-
-      if (acceptRequest == true && !arrive && !startride) {
-        onClickcancelTrip(
-          "Emergency (Canceling before arrive captain)",
-          sec,
-          sec == 0 ? sec : cf
-        );
-        return;
-      }
-
-      if (acceptRequest == true && arrive && !startride) {
-        onClickcancelTrip(
-          "Emergency (Canceling after arrive captain)",
-          sec,
-          sec == 0 ? sec : cf
-        );
-        return;
-      }
-
-      if (acceptRequest == true && arrive && startride) {
-        onClickcancelTrip(
-          "Emergency (Canceling after start ride captain)",
-          sec,
-          sec == 0 ? sec : cf
-        );
-        return;
-      }
+      attemptToGetCharges();
     } else {
       utils.AlertMessage("", "Please connect internet !");
     }
@@ -988,8 +1121,10 @@ const Search = observer((props: Props) => {
         setl(false);
 
         if (response.success) {
+          rBSheetc?.current?.close();
           setacceptRequest(false);
           setgrtime("");
+          usermanager.getmyWalletinfo();
           utils.ToastAndroid.ToastAndroid_SB("Cancel");
 
           return;
@@ -1051,6 +1186,8 @@ const Search = observer((props: Props) => {
         "hardwareBackPress",
         handleBackButtonClickk
       );
+
+      attemptToGetCaptains(dropoff.location);
       seti(0),
         setisdropoff(false),
         setpickup({}),
@@ -1270,6 +1407,7 @@ const Search = observer((props: Props) => {
         setisdropoff(true);
         seti(0);
         setloader(true);
+        setcaptains([]);
       } else {
         utils.AlertMessage("", "Please connect internet");
       }
@@ -1287,6 +1425,7 @@ const Search = observer((props: Props) => {
         //   return;
         // }
 
+        usermanager.getmyWalletinfo();
         fetchDistanceBetweenPointsOnline(
           pickup.location.latitude,
           pickup.location.longitude,
@@ -1684,14 +1823,43 @@ const Search = observer((props: Props) => {
 
   const captainsMarker = () => {
     let c = captains.map((e, i, a) => {
-      let c = pickupType.toLowerCase();
-
-      if (c != "") {
-        return renderShowCars(e.location, e.type.toLowerCase());
-      }
+      const obj = {
+        latitude: e.captain.location.coordinates[1],
+        longitude: e.captain.location.coordinates[0],
+        latitudeDelta: LATITUDE_DELTA,
+        longitudeDelta: LONGITUDE_DELTA,
+      };
+      // console.log(" nearest captan   : ", obj);
+      return renderShowCars(obj, e.vehicle[0].type.type);
     });
 
     return c;
+  };
+
+  const renderShowCars = (cars, name) => {
+    let n = "";
+
+    if (name == "truck") n = require("../../assets/images/truck.png");
+
+    if (name == "pickup") n = require("../../assets/images/pickup.png");
+
+    if (name == "shehzore") n = require("../../assets/images/shehzore.png");
+
+    if (name == "container") n = require("../../assets/images/container.png");
+
+    return (
+      <Marker identifier="mkcars" coordinate={cars} pinColor={"silver"}>
+        <Image
+          source={n}
+          style={{
+            width: 30,
+            height: 30,
+            opacity: 0.65,
+            resizeMode: "contain",
+          }}
+        />
+      </Marker>
+    );
   };
 
   const currentCaptainMarker = () => {
@@ -1744,10 +1912,41 @@ const Search = observer((props: Props) => {
     }
   };
 
+  const ShareRideDetails = async () => {
+    const shareOptions = {
+      message: `Hey I booked a Deliverit mini! The Captain is ${req.captain.fullname}, driving a ${req.vehicle.color} ${req.vehicle.car_name.name}, ${req.vehicle.registration_number}, mobile number is ${req.captain.mobile_number}. `,
+    };
+    try {
+      const result = await Share.share(shareOptions);
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          console.log("result activityType", result.activityType);
+          // shared with activity type of result.activityType
+        } else {
+          console.log("share");
+          // shared
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // dismissed
+        console.log("dismiis");
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
   // calback method section
 
   const RegionChangeComplete = async (e) => {
     const loc = { latitude: e.latitude, longitude: e.longitude };
+
+    // console.log("on region chnag cal : ");
+    // let data = {
+    //   name: "",
+    //   address: "",
+    //   location: e,
+    // };
+    // setregion(data);
 
     if (!ispickup) {
       if (ft > 0 && i == 0 && se) {
@@ -1811,6 +2010,25 @@ const Search = observer((props: Props) => {
 
   const onmapReady = () => {
     setmr(true);
+  };
+
+  const gotoHelp = () => {
+    Navigation.push(ROOT_NAV_ID, {
+      component: {
+        name: "Help",
+        options: {
+          topBar: {
+            visible: false,
+          },
+        },
+
+        passProps: {
+          from: "search",
+          addbackhandler: () => addBackHandler(),
+          removebckhndlr: () => removeBackHandler(),
+        },
+      },
+    });
   };
 
   // const polygons = [
@@ -1950,6 +2168,11 @@ const Search = observer((props: Props) => {
   };
 
   const renderFooter = () => {
+    const config = {
+      velocityThreshold: 0.3,
+      directionalOffsetThreshold: 80,
+    };
+
     if (ispickup == false) {
       return (
         <View
@@ -2084,10 +2307,15 @@ const Search = observer((props: Props) => {
     } else {
       let name = sr;
       let n = "";
-      let rs = rr * td;
+
+      let rs = rr * td.toFixed(1);
+
       let maxWeight = carmanager.vehicleType.find(
         (x) => x.type === name
       ).max_weight;
+      let wc = carmanager.vehicleType.find(
+        (x) => x.type === name
+      ).waiting_charges;
       console.log(`vtype rent rr  ${rr} * ${td} = ${rr * td}`);
 
       if (name == "truck") {
@@ -2121,9 +2349,28 @@ const Search = observer((props: Props) => {
                 width: "100%",
               }}
             >
-              <Text style={{ fontSize: 13, color: "grey" }}>
-                {td.toFixed(1)} Km
-              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  width: "100%",
+                }}
+              >
+                <Text style={{ fontSize: 13, color: "grey", width: "50%" }}>
+                  {td.toFixed(1)} Km
+                </Text>
+                {/* <Text
+                  style={{
+                    fontSize: 13,
+                    color: "grey",
+                    width: "55%",
+                    textAlign: "right",
+                  }}
+                >
+                  {secondsToHms(traveltime)}
+                </Text> */}
+              </View>
 
               <TouchableOpacity
                 onPress={() => {
@@ -2147,6 +2394,9 @@ const Search = observer((props: Props) => {
               </TouchableOpacity>
 
               <TouchableOpacity
+                onPress={() => {
+                  setridedetail(true);
+                }}
                 style={{
                   marginTop: 20,
                   width: "98%",
@@ -2163,14 +2413,19 @@ const Search = observer((props: Props) => {
                 <View
                   style={{
                     flexDirection: "row",
-                    width: "62%",
+                    width: "66%",
                   }}
                 >
                   <Image
                     source={n}
                     style={{ width: 45, height: 45, resizeMode: "contain" }}
                   />
-                  <View style={{ marginLeft: 10, width: "70%" }}>
+                  <View
+                    style={{
+                      marginLeft: 10,
+                      width: "85%",
+                    }}
+                  >
                     <Text
                       numberOfLines={1}
                       ellipsizeMode="tail"
@@ -2195,11 +2450,18 @@ const Search = observer((props: Props) => {
                       ellipsizeMode="tail"
                       style={{ fontSize: 15, color: "grey" }}
                     >
-                      Max weight: {maxWeight}
+                      Max weight: {maxWeight} kg
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 15, color: "grey" }}
+                    >
+                      Waiting charges: PKR {wc}
                     </Text>
                   </View>
                 </View>
-                <View style={{ width: "34%" }}>
+                <View style={{ width: "26%" }}>
                   <Text
                     numberOfLines={1}
                     ellipsizeMode="tail"
@@ -2282,35 +2544,44 @@ const Search = observer((props: Props) => {
               width: "100%",
             }}
           >
-            <View
+            <GestureRecognizer
+              onSwipeDown={(state) => setridedetail(false)}
+              config={config}
               style={{
-                width: "100%",
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
+                flex: 1,
+                backgroundColor: "white",
               }}
             >
-              <Text
-                style={{ fontSize: 20, color: "black", fontWeight: "bold" }}
-              >
-                Ride details
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setridedetail(false);
+              <View
+                style={{
+                  width: "100%",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                 }}
               >
-                <utils.vectorIcon.MaterialIcons
-                  name="keyboard-arrow-down"
-                  color="black"
-                  size={30}
-                />
-              </TouchableOpacity>
-            </View>
+                <Text
+                  style={{ fontSize: 20, color: "black", fontWeight: "bold" }}
+                >
+                  Ride details
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setridedetail(false);
+                  }}
+                >
+                  <utils.vectorIcon.MaterialIcons
+                    name="keyboard-arrow-down"
+                    color="black"
+                    size={30}
+                  />
+                </TouchableOpacity>
+              </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {renderShowRides(sr)}
-            </ScrollView>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {renderShowRides(sr)}
+              </ScrollView>
+            </GestureRecognizer>
           </View>
         );
       }
@@ -2318,6 +2589,11 @@ const Search = observer((props: Props) => {
   };
 
   const renderFooterCaptainSheet = () => {
+    const config = {
+      velocityThreshold: 0.3,
+      directionalOffsetThreshold: 80,
+    };
+
     let name = req.type.type;
     let n = "";
     let rs = req.type.rent;
@@ -2358,254 +2634,345 @@ const Search = observer((props: Props) => {
             bottom: 0,
           }}
         >
-          <View style={{ flex: 1, backgroundColor: "white" }}>
-            <View style={{ backgroundColor: "white", padding: 10 }}>
-              <TouchableOpacity
-                style={{ alignSelf: "center" }}
-                onPress={() => {
-                  setrbsheetUp(!rbsheetUp);
-                }}
-              >
-                <utils.vectorIcon.AntDesign
-                  name={rbsheetUp ? "down" : "up"}
-                  size={20}
-                  color="grey"
-                />
-              </TouchableOpacity>
-
-              <Text
-                numberOfLines={2}
-                ellipsizeMode="tail"
-                style={{ fontSize: 22, color: "black", fontWeight: "bold" }}
-              >
-                {title}
-              </Text>
-            </View>
-
-            <View
-              style={{ width: "100%", height: 3, backgroundColor: "silver" }}
-            />
-
-            <ScrollView
-              scrollEnabled={rbsheetUp ? true : false}
-              showsVerticalScrollIndicator={false}
-            >
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  width: "100%",
-                  padding: 10,
-                  marginTop: 3,
-                  backgroundColor: "white",
-                }}
-              >
-                {(!req.captain.profile_image ||
-                  req.captain.profile_image == "") && (
-                  <utils.vectorIcon.FontAwesome
-                    name="user-circle"
-                    color="#0E47A1"
-                    size={60}
-                  />
-                )}
-                {req.captain.profile_image && req.captain.profile_image !== "" && (
-                  <View
-                    style={{
-                      width: 60,
-                      height: 60,
-                      borderColor: "#0E47A1",
-                      borderRadius: 30,
-                      borderWidth: 1,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Image
-                      onLoad={() => {
-                        setimgLoadd(true);
-                      }}
-                      style={{ width: 59, height: 59, borderRadius: 29.5 }}
-                      source={{ uri: req.captain.profile_image }}
-                    />
-                    {imgLoadd == false && (
-                      <ActivityIndicator
-                        size={10}
-                        color="#0E47A1"
-                        style={{ top: 25, position: "absolute" }}
-                      />
-                    )}
-                  </View>
-                )}
-
-                <View style={{ width: "62%" }}>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{
-                      fontSize: 20,
-                      color: "black",
-                      lineHeight: 25,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {req.captain.fullname}
-                  </Text>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{
-                      fontSize: 17,
-                      color: "black",
-                      lineHeight: 25,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {req.vehicle.registration_number}
-                  </Text>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{
-                      fontSize: 17,
-                      color: "grey",
-                      lineHeight: 25,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {req.vehicle.car_name.name + " " + req.vehicle.color}
-                  </Text>
-                </View>
-
-                <View style={{ width: "17%", height: 30 }}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      alignSelf: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 17,
-                        color: "grey",
-                        alignSelf: "flex-end",
-                        lineHeight: 25,
-                      }}
-                    >
-                      {ar.toFixed(1)}
-                    </Text>
-                    <utils.vectorIcon.FontAwesome
-                      name="star"
-                      color="grey"
-                      style={{ marginLeft: 5 }}
-                      size={17}
-                    />
-                  </View>
-                </View>
-              </View>
-
-              <View
-                style={{
-                  width: "100%",
-                  height: 0.8,
-                  backgroundColor: "silver",
-                }}
-              />
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  width: "100%",
-                  backgroundColor: "silver",
-                }}
-              >
+          <GestureRecognizer
+            onSwipeUp={(state) => setrbsheetUp(true)}
+            onSwipeDown={(state) => setrbsheetUp(false)}
+            config={config}
+            style={{
+              flex: 1,
+              backgroundColor: "white",
+            }}
+          >
+            <View style={{ flex: 1, backgroundColor: "white" }}>
+              <View style={{ backgroundColor: "white", padding: 10 }}>
                 <TouchableOpacity
+                  style={{ alignSelf: "center" }}
                   onPress={() => {
-                    callUser(req.captain.mobile_number);
-                  }}
-                  style={{
-                    width: "100%",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: 7,
-                    backgroundColor: "white",
+                    setrbsheetUp(!rbsheetUp);
                   }}
                 >
-                  <View style={{ flexDirection: "row", alignItems: "center" }}>
-                    <utils.vectorIcon.Ionicons
-                      name="ios-call"
-                      color="grey"
-                      size={20}
-                    />
-                    <Text
-                      style={{ fontSize: 15, color: "black", marginLeft: 5 }}
-                    >
-                      CALL
-                    </Text>
-                  </View>
+                  <utils.vectorIcon.AntDesign
+                    name={rbsheetUp ? "down" : "up"}
+                    size={20}
+                    color="grey"
+                  />
                 </TouchableOpacity>
 
-                {/* <TouchableOpacity style={{width:"49.8%",alignItems:"center",justifyContent:"center",padding:7,backgroundColor:"white"}}>
-				 <View style={{flexDirection:"row",alignItems:"center"}}>
-				<utils.vectorIcon.Ionicons name="chatbubble" color="grey" size={20}/>
-				 <Text  style={{fontSize:15,color:"black",marginLeft:5}}>CHAT</Text> 
-				 </View>
-			 </TouchableOpacity> */}
+                <Text
+                  numberOfLines={2}
+                  ellipsizeMode="tail"
+                  style={{ fontSize: 22, color: "black", fontWeight: "bold" }}
+                >
+                  {title}
+                </Text>
               </View>
 
               <View
                 style={{ width: "100%", height: 3, backgroundColor: "silver" }}
               />
 
-              <View
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginTop: 3,
-                  backgroundColor: "white",
-                }}
+              <ScrollView
+                scrollEnabled={rbsheetUp ? true : false}
+                showsVerticalScrollIndicator={false}
               >
                 <View
-                  style={{ alignItems: "center", justifyContent: "center" }}
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    width: "100%",
+                    padding: 10,
+                    marginTop: 3,
+                    backgroundColor: "white",
+                  }}
                 >
-                  <utils.vectorIcon.FontAwesome
-                    name="circle-thin"
-                    size={15}
-                    color="#0E47A1"
-                  />
-                  <View
-                    style={{ width: 1, height: 50, backgroundColor: "#0E47A1" }}
-                  />
-                  <utils.vectorIcon.FontAwesome
-                    name="circle"
-                    size={15}
-                    color="#0E47A1"
-                  />
+                  {(!req.captain.profile_image ||
+                    req.captain.profile_image == "") && (
+                    <utils.vectorIcon.FontAwesome
+                      name="user-circle"
+                      color="#0E47A1"
+                      size={60}
+                    />
+                  )}
+                  {req.captain.profile_image &&
+                    req.captain.profile_image !== "" && (
+                      <View
+                        style={{
+                          width: 60,
+                          height: 60,
+                          borderColor: "#0E47A1",
+                          borderRadius: 30,
+                          borderWidth: 1,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Image
+                          onLoad={() => {
+                            setimgLoadd(true);
+                          }}
+                          style={{ width: 59, height: 59, borderRadius: 29.5 }}
+                          source={{ uri: req.captain.profile_image }}
+                        />
+                        {imgLoadd == false && (
+                          <ActivityIndicator
+                            size={10}
+                            color="#0E47A1"
+                            style={{ top: 25, position: "absolute" }}
+                          />
+                        )}
+                      </View>
+                    )}
+
+                  <View style={{ width: "62%" }}>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{
+                        fontSize: 20,
+                        color: "black",
+                        lineHeight: 25,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {req.captain.fullname}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{
+                        fontSize: 17,
+                        color: "black",
+                        lineHeight: 25,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {req.vehicle.registration_number}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{
+                        fontSize: 17,
+                        color: "grey",
+                        lineHeight: 25,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {req.vehicle.car_name.name + " " + req.vehicle.color}
+                    </Text>
+                  </View>
+
+                  <View style={{ width: "17%", height: 30 }}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        alignSelf: "center",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 17,
+                          color: "grey",
+                          alignSelf: "flex-end",
+                          lineHeight: 25,
+                        }}
+                      >
+                        {ar.toFixed(1)}
+                      </Text>
+                      <utils.vectorIcon.FontAwesome
+                        name="star"
+                        color="grey"
+                        style={{ marginLeft: 5 }}
+                        size={17}
+                      />
+                    </View>
+                  </View>
                 </View>
 
-                <View style={{ width: "90%" }}>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ fontSize: 18, color: "black", lineHeight: 25 }}
+                <View
+                  style={{
+                    width: "100%",
+                    height: 0.8,
+                    backgroundColor: "silver",
+                  }}
+                />
+
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    width: "100%",
+                    backgroundColor: "silver",
+                  }}
+                >
+                  <TouchableOpacity
+                    onPress={() => {
+                      callUser(req.captain.mobile_number);
+                    }}
+                    style={{
+                      width: "100%",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: 7,
+                      backgroundColor: "white",
+                    }}
                   >
-                    {req.pickup.name}
-                  </Text>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ fontSize: 15, color: "silver", lineHeight: 20 }}
+                    <View
+                      style={{ flexDirection: "row", alignItems: "center" }}
+                    >
+                      <utils.vectorIcon.Ionicons
+                        name="ios-call"
+                        color="grey"
+                        size={20}
+                      />
+                      <Text
+                        style={{ fontSize: 15, color: "black", marginLeft: 5 }}
+                      >
+                        CALL
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* <TouchableOpacity style={{width:"49.8%",alignItems:"center",justifyContent:"center",padding:7,backgroundColor:"white"}}>
+				 <View style={{flexDirection:"row",alignItems:"center"}}>
+				<utils.vectorIcon.Ionicons name="chatbubble" color="grey" size={20}/>
+				 <Text  style={{fontSize:15,color:"black",marginLeft:5}}>CHAT</Text> 
+				 </View>
+			 </TouchableOpacity> */}
+                </View>
+
+                <View
+                  style={{
+                    width: "100%",
+                    height: 3,
+                    backgroundColor: "silver",
+                  }}
+                />
+
+                <View
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginTop: 3,
+                    backgroundColor: "white",
+                  }}
+                >
+                  <View
+                    style={{ alignItems: "center", justifyContent: "center" }}
                   >
-                    {req.pickup.address}
+                    <utils.vectorIcon.FontAwesome
+                      name="circle-thin"
+                      size={15}
+                      color="#0E47A1"
+                    />
+                    <View
+                      style={{
+                        width: 1,
+                        height: 50,
+                        backgroundColor: "#0E47A1",
+                      }}
+                    />
+                    <utils.vectorIcon.FontAwesome
+                      name="circle"
+                      size={15}
+                      color="#0E47A1"
+                    />
+                  </View>
+
+                  <View style={{ width: "90%" }}>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 18, color: "black", lineHeight: 25 }}
+                    >
+                      {req.pickup.name}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 15, color: "silver", lineHeight: 20 }}
+                    >
+                      {req.pickup.address}
+                    </Text>
+
+                    <View
+                      style={{
+                        width: "100%",
+                        backgroundColor: "silver",
+                        height: 0.5,
+                        alignSelf: "center",
+                        opacity: 0.5,
+                        marginVertical: 10,
+                      }}
+                    />
+
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 18, color: "black", lineHeight: 25 }}
+                    >
+                      {req.dropoff.name}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 15, color: "silver", lineHeight: 20 }}
+                    >
+                      {req.dropoff.address}
+                    </Text>
+                  </View>
+                </View>
+
+                <View
+                  style={{
+                    width: "100%",
+                    height: 3,
+                    backgroundColor: "silver",
+                  }}
+                />
+
+                <View
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    marginTop: 3,
+                    backgroundColor: "white",
+                  }}
+                >
+                  <Text style={{ fontSize: 16, color: "silver" }}>
+                    Booking details
                   </Text>
 
                   <View
                     style={{
-                      width: "100%",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginTop: 10,
+                    }}
+                  >
+                    <Image
+                      source={n}
+                      style={{ width: 30, height: 30, resizeMode: "contain" }}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        color: "black",
+                        marginLeft: 15,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {name}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={{
+                      width: "70%",
                       backgroundColor: "silver",
                       height: 0.5,
                       alignSelf: "center",
@@ -2614,191 +2981,131 @@ const Search = observer((props: Props) => {
                     }}
                   />
 
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ fontSize: 18, color: "black", lineHeight: 25 }}
-                  >
-                    {req.dropoff.name}
-                  </Text>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ fontSize: 15, color: "silver", lineHeight: 20 }}
-                  >
-                    {req.dropoff.address}
-                  </Text>
-                </View>
-              </View>
-
-              <View
-                style={{ width: "100%", height: 3, backgroundColor: "silver" }}
-              />
-
-              <View
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  marginTop: 3,
-                  backgroundColor: "white",
-                }}
-              >
-                <Text style={{ fontSize: 16, color: "silver" }}>
-                  Booking details
-                </Text>
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginTop: 10,
-                  }}
-                >
-                  <Image
-                    source={n}
-                    style={{ width: 30, height: 30, resizeMode: "contain" }}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 17,
-                      color: "black",
-                      marginLeft: 15,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {name}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <utils.vectorIcon.MaterialCommunityIcons
+                      name="cash"
+                      color="silver"
+                      size={30}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        color: "black",
+                        marginLeft: 15,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      Cash
+                    </Text>
+                  </View>
                 </View>
 
                 <View
                   style={{
-                    width: "70%",
+                    width: "100%",
+                    height: 3,
                     backgroundColor: "silver",
-                    height: 0.5,
-                    alignSelf: "center",
-                    opacity: 0.5,
-                    marginVertical: 10,
                   }}
                 />
 
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <utils.vectorIcon.MaterialCommunityIcons
-                    name="cash"
-                    color="silver"
-                    size={30}
-                  />
-                  <Text
+                <View
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    marginTop: 3,
+                    backgroundColor: "white",
+                  }}
+                >
+                  <Text style={{ fontSize: 16, color: "silver" }}>
+                    Manage rides
+                  </Text>
+
+                  <TouchableOpacity
                     style={{
-                      fontSize: 17,
-                      color: "black",
-                      marginLeft: 15,
-                      textTransform: "capitalize",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginTop: 10,
+                    }}
+                    onPress={() => ShareRideDetails()}
+                  >
+                    <utils.vectorIcon.MaterialCommunityIcons
+                      name="share-circle"
+                      color="silver"
+                      size={25}
+                    />
+                    <Text
+                      style={{ fontSize: 17, color: "black", marginLeft: 15 }}
+                    >
+                      Share ride details
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View
+                    style={{
+                      width: "70%",
+                      backgroundColor: "silver",
+                      height: 0.5,
+                      alignSelf: "center",
+                      opacity: 0.5,
+                      marginVertical: 15,
+                    }}
+                  />
+
+                  <TouchableOpacity
+                    onPress={gotoHelp}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginTop: 10,
                     }}
                   >
-                    Cash
-                  </Text>
+                    <utils.vectorIcon.AntDesign
+                      name="questioncircle"
+                      color="silver"
+                      size={22}
+                    />
+                    <Text
+                      style={{ fontSize: 17, color: "black", marginLeft: 15 }}
+                    >
+                      Get support
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View
+                    style={{
+                      width: "70%",
+                      backgroundColor: "silver",
+                      height: 0.5,
+                      alignSelf: "center",
+                      opacity: 0.5,
+                      marginVertical: 15,
+                    }}
+                  />
+
+                  <TouchableOpacity
+                    onPress={() => rBSheetc?.current?.open()}
+                    style={{ flexDirection: "row", alignItems: "center" }}
+                  >
+                    <utils.vectorIcon.Entypo
+                      name="circle-with-cross"
+                      color="#d66363"
+                      size={25}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        color: "#c74242",
+                        marginLeft: 15,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      Cancel ride
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              </View>
-
-              <View
-                style={{ width: "100%", height: 3, backgroundColor: "silver" }}
-              />
-
-              <View
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  marginTop: 3,
-                  backgroundColor: "white",
-                }}
-              >
-                <Text style={{ fontSize: 16, color: "silver" }}>
-                  Manage rides
-                </Text>
-
-                <TouchableOpacity
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginTop: 10,
-                  }}
-                >
-                  <utils.vectorIcon.MaterialCommunityIcons
-                    name="share-circle"
-                    color="silver"
-                    size={25}
-                  />
-                  <Text
-                    style={{ fontSize: 17, color: "black", marginLeft: 15 }}
-                  >
-                    Share ride details
-                  </Text>
-                </TouchableOpacity>
-
-                <View
-                  style={{
-                    width: "70%",
-                    backgroundColor: "silver",
-                    height: 0.5,
-                    alignSelf: "center",
-                    opacity: 0.5,
-                    marginVertical: 15,
-                  }}
-                />
-
-                <TouchableOpacity
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginTop: 10,
-                  }}
-                >
-                  <utils.vectorIcon.AntDesign
-                    name="questioncircle"
-                    color="silver"
-                    size={22}
-                  />
-                  <Text
-                    style={{ fontSize: 17, color: "black", marginLeft: 15 }}
-                  >
-                    Get support
-                  </Text>
-                </TouchableOpacity>
-
-                <View
-                  style={{
-                    width: "70%",
-                    backgroundColor: "silver",
-                    height: 0.5,
-                    alignSelf: "center",
-                    opacity: 0.5,
-                    marginVertical: 15,
-                  }}
-                />
-
-                <TouchableOpacity
-                  onPress={() => rBSheetc?.current?.open()}
-                  style={{ flexDirection: "row", alignItems: "center" }}
-                >
-                  <utils.vectorIcon.Entypo
-                    name="circle-with-cross"
-                    color="#d66363"
-                    size={25}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 17,
-                      color: "#c74242",
-                      marginLeft: 15,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    Cancel ride
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
+              </ScrollView>
+            </View>
+          </GestureRecognizer>
         </View>
       );
     } else if (endride) {
@@ -2876,13 +3183,35 @@ const Search = observer((props: Props) => {
             selectedStar={(rating) => setstarCount(rating)}
           />
 
+          {req.rent == 0 && (
+            <View
+              style={{
+                marginTop: 10,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={{
+                  fontSize: 16,
+                  color: theme.colors.primary,
+                  fontWeight: "bold",
+                }}
+              >
+                Fare paid from wallet
+              </Text>
+            </View>
+          )}
+
           <View
             style={{
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
               width: "100%",
-              marginTop: 15,
+              marginTop: 10,
             }}
           >
             <Text
@@ -2903,7 +3232,7 @@ const Search = observer((props: Props) => {
                 fontWeight: "bold",
               }}
             >
-              PKR {req.rent}
+              PKR {req.rent > 0 ? req.rent : req.rent_afterBaseCharges}
             </Text>
           </View>
 
@@ -3015,14 +3344,25 @@ const Search = observer((props: Props) => {
                   textAlign: "right",
                 }}
               >
-                PKR 0
+                PKR {usermanager.uwbalance.toFixed()}
               </Text>
               <ToggleSwitch
                 isOn={cashSwitch}
                 onColor="#0E47A1"
                 offColor="silver"
                 size="medium"
-                onToggle={(isOn) => setcashSwitch(isOn)}
+                onToggle={(isOn) => {
+                  if (usermanager.uwbalance > 0) {
+                    setcashSwitch(isOn);
+                  } else if (usermanager.uwbalance == 0) {
+                    Alert.alert("", "Sorry, your wallet is empty");
+                  } else if (usermanager.uwbalance < 0) {
+                    Alert.alert(
+                      "",
+                      `You have an outstanding payment of ${usermanager.uwbalance} PKR. This amount will be added in your next booking.`
+                    );
+                  }
+                }}
               />
             </View>
           </View>
@@ -3071,7 +3411,7 @@ const Search = observer((props: Props) => {
           {renderSepLine()}
 
           {/* third option */}
-          <TouchableOpacity
+          {/* <TouchableOpacity
             onPress={() => gotoAddCard()}
             style={{
               width: "100%",
@@ -3090,30 +3430,9 @@ const Search = observer((props: Props) => {
             >
               ADD CARD
             </Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </DialogContent>
       </Dialog>
-    );
-  };
-
-  const renderShowCars = (cars, name) => {
-    let n = "";
-
-    if (name == "truck") n = require("../../assets/images/truck.png");
-
-    if (name == "pickup") n = require("../../assets/images/pickup.png");
-
-    if (name == "shehzore") n = require("../../assets/images/shehzore.png");
-
-    if (name == "container") n = require("../../assets/images/container.png");
-
-    return (
-      <Marker identifier="mkcars" coordinate={cars} pinColor={"silver"}>
-        <Image
-          source={n}
-          style={{ width: 20, height: 20, opacity: 0.7, resizeMode: "contain" }}
-        />
-      </Marker>
     );
   };
 
@@ -3137,11 +3456,15 @@ const Search = observer((props: Props) => {
       let rr = 0;
       let id = "";
       let maxWeight = 0;
+      let wc = 0;
 
       if (name == "truck") {
         n = require("../../assets/images/truck.png");
         rr = carmanager.vehicleType.find((x) => x.type === "truck").rent;
         id = carmanager.vehicleType.find((x) => x.type === "truck")._id;
+        wc = carmanager.vehicleType.find(
+          (x) => x.type === "truck"
+        ).waiting_charges;
         maxWeight = carmanager.vehicleType.find(
           (x) => x.type === "truck"
         ).max_weight;
@@ -3150,6 +3473,9 @@ const Search = observer((props: Props) => {
         n = require("../../assets/images/pickup.png");
         rr = carmanager.vehicleType.find((x) => x.type === "pickup").rent;
         id = carmanager.vehicleType.find((x) => x.type === "pickup")._id;
+        wc = carmanager.vehicleType.find(
+          (x) => x.type === "pickup"
+        ).waiting_charges;
         maxWeight = carmanager.vehicleType.find(
           (x) => x.type === "pickup"
         ).max_weight;
@@ -3158,6 +3484,9 @@ const Search = observer((props: Props) => {
         n = require("../../assets/images/shehzore.png");
         rr = carmanager.vehicleType.find((x) => x.type === "shehzore").rent;
         id = carmanager.vehicleType.find((x) => x.type === "shehzore")._id;
+        wc = carmanager.vehicleType.find(
+          (x) => x.type === "shehzore"
+        ).waiting_charges;
         maxWeight = carmanager.vehicleType.find(
           (x) => x.type === "shehzore"
         ).max_weight;
@@ -3166,11 +3495,14 @@ const Search = observer((props: Props) => {
         n = require("../../assets/images/container.png");
         rr = carmanager.vehicleType.find((x) => x.type === "container").rent;
         id = carmanager.vehicleType.find((x) => x.type === "container")._id;
+        wc = carmanager.vehicleType.find(
+          (x) => x.type === "container"
+        ).waiting_charges;
         maxWeight = carmanager.vehicleType.find(
           (x) => x.type === "container"
         ).max_weight;
       }
-      let rs = rr * td;
+      let rs = rr * td.toFixed(1);
 
       return (
         <TouchableOpacity
@@ -3194,12 +3526,17 @@ const Search = observer((props: Props) => {
             alignSelf: "center",
           }}
         >
-          <View style={{ flexDirection: "row", width: "62%" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              width: "66%",
+            }}
+          >
             <Image
               source={n}
               style={{ width: 45, height: 45, resizeMode: "contain" }}
             />
-            <View style={{ marginLeft: 10, width: "70%" }}>
+            <View style={{ marginLeft: 10, width: "85%" }}>
               <Text
                 numberOfLines={1}
                 ellipsizeMode="tail"
@@ -3224,11 +3561,18 @@ const Search = observer((props: Props) => {
                 ellipsizeMode="tail"
                 style={{ fontSize: 15, color: "grey" }}
               >
-                Max weight: {maxWeight}
+                Max weight: {maxWeight} kg
+              </Text>
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={{ fontSize: 15, color: "grey" }}
+              >
+                Waiting charges: PKR {wc}
               </Text>
             </View>
           </View>
-          <View style={{ width: "34%" }}>
+          <View style={{ width: "26%" }}>
             <Text
               numberOfLines={1}
               ellipsizeMode="tail"
@@ -3251,6 +3595,10 @@ const Search = observer((props: Props) => {
 
   //find your captain and captain dtail botom shwwt if chalo true
   const renderRbsheet = () => {
+    const config = {
+      velocityThreshold: 0.3,
+      directionalOffsetThreshold: 80,
+    };
     var name = sr;
     let n = "";
     let rs = 0;
@@ -3281,124 +3629,193 @@ const Search = observer((props: Props) => {
     }
 
     return (
-      <RBSheet
-        ref={rBSheet}
-        closeOnDragDown={false}
-        closeOnPressMask={false}
-        c={""}
-        changeru={() => setrbsheetUp(false)}
-        closeOnPressBack={true}
-        keyboardAvoidingViewEnabled={true}
-        animationType="slide"
-        customStyles={{
-          wrapper: {
-            backgroundColor: "transparent",
-          },
-          //   draggableIcon: {
-          // 	  backgroundColor: 'grey',
-          // 	  width:50
-          //   },
-          container: {
-            height: rbsheetUp ? height - 190 : height - 410,
-            borderTopLeftRadius: 20,
-            borderTopRightRadius: 20,
-            backgroundColor: "white",
-            elevation: 7,
-          },
-        }}
-      >
+      <>
         {acceptRequest == "f" && (
-          <View style={{ flex: 1, backgroundColor: "white" }}>
-            <View style={{ padding: 10 }}>
-              <TouchableOpacity
-                style={{ alignSelf: "center" }}
-                onPress={() => {
-                  setrbsheetUp(!rbsheetUp);
-                }}
-              >
-                <utils.vectorIcon.AntDesign
-                  name={rbsheetUp ? "down" : "up"}
-                  size={20}
-                  color="grey"
-                />
-              </TouchableOpacity>
-
-              <Text
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                style={{
-                  fontSize: 22,
-                  color: "black",
-                  fontWeight: "bold",
-                  alignSelf: "center",
-                  textAlign: "center",
-                }}
-              >
-                Finding Your Captain
-              </Text>
-
-              <Image
-                style={{ width: "100%", height: 30, resizeMode: "contain" }}
-                source={require("../../assets/loaded.gif")}
-              />
-            </View>
-
-            <View
-              style={{ width: "100%", height: 3, backgroundColor: "silver" }}
-            />
-
-            <ScrollView
-              scrollEnabled={rbsheetUp ? true : false}
-              showsVerticalScrollIndicator={false}
+          <View
+            style={{
+              padding: 10,
+              height: rbsheetUp ? height - 190 : height - 410,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              backgroundColor: "white",
+              position: "absolute",
+              bottom: 0,
+              elevation: 7,
+            }}
+          >
+            <GestureRecognizer
+              onSwipeUp={(state) => setrbsheetUp(true)}
+              onSwipeDown={(state) => setrbsheetUp(false)}
+              config={config}
+              style={{
+                backgroundColor: "white",
+              }}
             >
+              <View>
+                <TouchableOpacity
+                  style={{ alignSelf: "center" }}
+                  onPress={() => {
+                    setrbsheetUp(!rbsheetUp);
+                  }}
+                >
+                  <utils.vectorIcon.AntDesign
+                    name={rbsheetUp ? "down" : "up"}
+                    size={20}
+                    color="grey"
+                  />
+                </TouchableOpacity>
+
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={{
+                    fontSize: 22,
+                    color: "black",
+                    fontWeight: "bold",
+                    alignSelf: "center",
+                    textAlign: "center",
+                  }}
+                >
+                  Finding Your Captain
+                </Text>
+
+                <Image
+                  style={{ width: "100%", height: 30, resizeMode: "contain" }}
+                  source={require("../../assets/loaded.gif")}
+                />
+              </View>
+
               <View
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginTop: 3,
-                  backgroundColor: "white",
-                }}
+                style={{ width: "100%", height: 3, backgroundColor: "silver" }}
+              />
+
+              <ScrollView
+                scrollEnabled={rbsheetUp ? true : false}
+                showsVerticalScrollIndicator={false}
               >
                 <View
-                  style={{ alignItems: "center", justifyContent: "center" }}
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginTop: 3,
+                    backgroundColor: "white",
+                  }}
                 >
-                  <utils.vectorIcon.FontAwesome
-                    name="circle-thin"
-                    size={15}
-                    color="#0E47A1"
-                  />
                   <View
-                    style={{ width: 1, height: 50, backgroundColor: "#0E47A1" }}
-                  />
-                  <utils.vectorIcon.FontAwesome
-                    name="circle"
-                    size={15}
-                    color="#0E47A1"
-                  />
+                    style={{ alignItems: "center", justifyContent: "center" }}
+                  >
+                    <utils.vectorIcon.FontAwesome
+                      name="circle-thin"
+                      size={15}
+                      color="#0E47A1"
+                    />
+                    <View
+                      style={{
+                        width: 1,
+                        height: 50,
+                        backgroundColor: "#0E47A1",
+                      }}
+                    />
+                    <utils.vectorIcon.FontAwesome
+                      name="circle"
+                      size={15}
+                      color="#0E47A1"
+                    />
+                  </View>
+
+                  <View style={{ width: "90%" }}>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 18, color: "black", lineHeight: 25 }}
+                    >
+                      {pickup.name}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 15, color: "silver", lineHeight: 20 }}
+                    >
+                      {pickup.address}
+                    </Text>
+
+                    <View
+                      style={{
+                        width: "100%",
+                        backgroundColor: "silver",
+                        height: 0.5,
+                        alignSelf: "center",
+                        opacity: 0.5,
+                        marginVertical: 10,
+                      }}
+                    />
+
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 18, color: "black", lineHeight: 25 }}
+                    >
+                      {dropoff.name}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ fontSize: 15, color: "silver", lineHeight: 20 }}
+                    >
+                      {dropoff.address}
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={{ width: "90%" }}>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ fontSize: 18, color: "black", lineHeight: 25 }}
-                  >
-                    {pickup.name}
-                  </Text>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ fontSize: 15, color: "silver", lineHeight: 20 }}
-                  >
-                    {pickup.address}
+                <View
+                  style={{
+                    width: "100%",
+                    height: 3,
+                    backgroundColor: "silver",
+                  }}
+                />
+
+                <View
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    marginTop: 3,
+                    backgroundColor: "white",
+                  }}
+                >
+                  <Text style={{ fontSize: 16, color: "silver" }}>
+                    Booking details
                   </Text>
 
                   <View
                     style={{
-                      width: "100%",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginTop: 10,
+                    }}
+                  >
+                    <Image
+                      source={n}
+                      style={{ width: 30, height: 30, resizeMode: "contain" }}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        color: "black",
+                        marginLeft: 15,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {name}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={{
+                      width: "70%",
                       backgroundColor: "silver",
                       height: 0.5,
                       alignSelf: "center",
@@ -3407,163 +3824,102 @@ const Search = observer((props: Props) => {
                     }}
                   />
 
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ fontSize: 18, color: "black", lineHeight: 25 }}
-                  >
-                    {dropoff.name}
-                  </Text>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ fontSize: 15, color: "silver", lineHeight: 20 }}
-                  >
-                    {dropoff.address}
-                  </Text>
-                </View>
-              </View>
-
-              <View
-                style={{ width: "100%", height: 3, backgroundColor: "silver" }}
-              />
-
-              <View
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  marginTop: 3,
-                  backgroundColor: "white",
-                }}
-              >
-                <Text style={{ fontSize: 16, color: "silver" }}>
-                  Booking details
-                </Text>
-
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginTop: 10,
-                  }}
-                >
-                  <Image
-                    source={n}
-                    style={{ width: 30, height: 30, resizeMode: "contain" }}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 17,
-                      color: "black",
-                      marginLeft: 15,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {name}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <utils.vectorIcon.MaterialCommunityIcons
+                      name="cash"
+                      color="silver"
+                      size={30}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        color: "black",
+                        marginLeft: 15,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      Cash
+                    </Text>
+                  </View>
                 </View>
 
                 <View
                   style={{
-                    width: "70%",
+                    width: "100%",
+                    height: 3,
                     backgroundColor: "silver",
-                    height: 0.5,
-                    alignSelf: "center",
-                    opacity: 0.5,
-                    marginVertical: 10,
                   }}
                 />
 
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <utils.vectorIcon.MaterialCommunityIcons
-                    name="cash"
-                    color="silver"
-                    size={30}
-                  />
-                  <Text
-                    style={{
-                      fontSize: 17,
-                      color: "black",
-                      marginLeft: 15,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    Cash
-                  </Text>
-                </View>
-              </View>
-
-              <View
-                style={{ width: "100%", height: 3, backgroundColor: "silver" }}
-              />
-
-              <View
-                style={{
-                  width: "100%",
-                  padding: 10,
-                  marginTop: 3,
-                  backgroundColor: "white",
-                }}
-              >
-                <Text style={{ fontSize: 16, color: "silver" }}>
-                  Manage rides
-                </Text>
-
-                <TouchableOpacity
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    marginTop: 10,
-                  }}
-                >
-                  <utils.vectorIcon.AntDesign
-                    name="questioncircle"
-                    color="silver"
-                    size={21}
-                  />
-                  <Text
-                    style={{ fontSize: 17, color: "black", marginLeft: 15 }}
-                  >
-                    Get support
-                  </Text>
-                </TouchableOpacity>
-
                 <View
                   style={{
-                    width: "70%",
-                    backgroundColor: "silver",
-                    height: 0.5,
-                    alignSelf: "center",
-                    opacity: 0.5,
-                    marginVertical: 15,
+                    width: "100%",
+                    padding: 10,
+                    marginTop: 3,
+                    backgroundColor: "white",
                   }}
-                />
-
-                <TouchableOpacity
-                  onPress={() => rBSheetc?.current?.open()}
-                  style={{ flexDirection: "row", alignItems: "center" }}
                 >
-                  <utils.vectorIcon.Entypo
-                    name="circle-with-cross"
-                    color="#d66363"
-                    size={25}
-                  />
-                  <Text
+                  <Text style={{ fontSize: 16, color: "silver" }}>
+                    Manage rides
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={gotoHelp}
                     style={{
-                      fontSize: 17,
-                      color: "#c74242",
-                      marginLeft: 15,
-                      textTransform: "capitalize",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      marginTop: 10,
                     }}
                   >
-                    Cancel ride
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
+                    <utils.vectorIcon.AntDesign
+                      name="questioncircle"
+                      color="silver"
+                      size={21}
+                    />
+                    <Text
+                      style={{ fontSize: 17, color: "black", marginLeft: 15 }}
+                    >
+                      Get support
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View
+                    style={{
+                      width: "70%",
+                      backgroundColor: "silver",
+                      height: 0.5,
+                      alignSelf: "center",
+                      opacity: 0.5,
+                      marginVertical: 15,
+                    }}
+                  />
+
+                  <TouchableOpacity
+                    onPress={() => rBSheetc?.current?.open()}
+                    style={{ flexDirection: "row", alignItems: "center" }}
+                  >
+                    <utils.vectorIcon.Entypo
+                      name="circle-with-cross"
+                      color="#d66363"
+                      size={25}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 17,
+                        color: "#c74242",
+                        marginLeft: 15,
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      Cancel ride
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </ScrollView>
+            </GestureRecognizer>
           </View>
         )}
-      </RBSheet>
+      </>
     );
   };
 
@@ -3727,6 +4083,7 @@ const Search = observer((props: Props) => {
             ))}
 
           {!ieo(cp) && currentPosMarker()}
+          {!ispickup && captains.length > 0 && captainsMarker()}
           {acceptRequest == true && req && !endride && currentCaptainMarker()}
           {((!ieo(dropoff) && !isdropoff) ||
             (ispickup && !chalo) ||
@@ -3783,7 +4140,7 @@ const Search = observer((props: Props) => {
         {!ispickup && rednerDot()}
         {!chalo && renderFooter()}
         {chalo && acceptRequest == true && req && renderFooterCaptainSheet()}
-        {renderRbsheet()}
+        {chalo && acceptRequest != true && req && renderRbsheet()}
         {renderCancelRideSheet()}
         {!ispickup && renderZoom()}
         {renderCashdialog()}

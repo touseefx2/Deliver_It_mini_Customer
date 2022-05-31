@@ -174,16 +174,17 @@ const MyRides = observer((props: Props) => {
       trnsctn.map((e, i, a) => {
         if (e.trip.length > 0) {
           if (trp._id == e.trip[0]._id) {
+            console.log("trnsctn  : ", e);
             c = e;
             return;
           }
         }
       });
 
-      if (c) {
-        GoToDetails(c, trp);
-        return;
-      }
+      // if (c) {
+      GoToDetails(c, trp);
+      return;
+      // }
     }
   };
 
@@ -318,7 +319,7 @@ const MyRides = observer((props: Props) => {
       var date = moment(e.createdAt).format("ddd D MMM"); //9 july 2021
       let createdAt = date + ", " + t;
       let tid = e.t_id; //trip id
-      let rent = e.rent; //total amount in trip ride fare
+      let rent = e.rent_afterBaseCharges || 0; //total amount in trip ride fare
 
       return (
         <View style={[styles.Body, { marginTop: i == 0 ? 20 : 0 }]}>
@@ -382,7 +383,7 @@ const MyRides = observer((props: Props) => {
                   textAlign: "right",
                 }}
               >
-                PKR {rent}
+                PKR {rent.toFixed()}
               </Text>
             </View>
             <View
