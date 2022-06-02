@@ -43,12 +43,14 @@ const GET_NOTIFICATION = "notification/getNotification/";
 const UPDATE_NOTIFICATION = "notification/readNotification/";
 
 const RENTER_REG_EP = "user/addCustomer";
+const GET_CITIES = "city";
 
 // const getAlbumsById = "customer/albums?customer_id=" //login cstmr buy albums
 
 export default link = {
   links,
   login,
+  GET_CITIES,
   signup,
   updateUser,
   uploadFile,

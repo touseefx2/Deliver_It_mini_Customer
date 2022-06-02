@@ -1,120 +1,3 @@
-// import { action, computed, makeObservable, observable } from "mobx"
-// import { create, persist } from 'mobx-persist'
-// import { Alert, Platform } from 'react-native';
-// import React from 'react';
-// import { USER_TYPE } from './types';
-// import { gotoHome, goToLogin } from "../../navigation";
-// import {
-//     LOGIN_EP,
-// } from '../configs';
-// import db from "../../database/index"
-// import { carmanager } from "../CarManager";
-
-// class UserManager {
-
-//     @persist("object") @observable user = false;
-//     @persist @observable notificationToken  = ""
-//     @persist @observable authToken  = ""
-
-//     @observable mobile: string = ''
-//     @observable nt: string = ""
-//     @persist @observable uwbalance  = 0 //user wallet balance
-//     @observable trnsctn  = []
-
-//     constructor() {
-//         makeObservable(this)
-//     }
-
-//     @action.bound
-//     setUser(val) {
-//        this.user=val
-//     }
-
-//     @action.bound
-//     settrnsctn(val) {
-//        this.trnsctn=val
-//     }
-
-//     @action.bound
-//     setuwbalance(val) {
-//        this.uwbalance=val
-//     }
-
-//     @action.bound
-//     addMobile(val: string) {
-//         this.mobile = val;
-//     }
-
-//     @action.bound
-//     addnt(n: string) {
-//         this.nt = n;
-//     }
-
-//     @action.bound
-//     addnotificationToken(n: string) {
-//         this.notificationToken = n;
-//     }
-//     @action.bound
-//     addauthToken(n: string) {
-//         this.authToken = n;
-//     }
-
-//     @action.bound
-//     attemptToLogout() {
-//         this.mobile = '';
-//         this.nt = '';
-//         this.notificationToken='';
-//         this.authToken='';
-//         this.uwbalance=0;
-//         this.user = false;
-//        carmanager.setvehicleType(false);
-//     }
-
-//     @action.bound
-//        getmyWalletinfo=()=>{
-
-// 		const bodyData=false
-// 		const header= this.authToken;
-// 		const uid= this.user._id
-
-// 		// method, path, body, header
-// 		db.api.apiCall("get",db.link.getcustomerWalletinfo+uid,bodyData,header)
-// 		.then((response) => {
-
-// 			 console.log("getmyWalletinforesponse : " , response);
-
-// 			  if(response.data){
-
-//                 if(response.data.length<=0){
-//                     this.setuwbalance(0)
-//                     this.settrnsctn([])
-//                     return;
-//                   }
-
-// 				let r=response.data[0]
-// 				this.setuwbalance(r.balance)
-//                 this.settrnsctn(r.trips)
-// 				return;
-// 			   }
-
-// 			 if(!response.data){
-
-// 			  return;
-// 			 }
-
-// 		}).catch((e) => {
-
-// 		   console.error("getmyWalletinforesponse catch error : ", e)
-// 		  return;
-// 		})
-
-// 	  }
-
-// }
-// export const usermanager = new UserManager();
-// export const UserManagerContext = React.createContext(usermanager);
-// export const getUserManager = () => React.useContext(UserManagerContext);
-
 import React from "react";
 import { Navigation } from "react-native-navigation";
 import { AUTH_NAV_ID, gotoHome } from "../../navigation";
@@ -127,6 +10,8 @@ import { Alert } from "react-native";
 import { carmanager } from "../CarManager";
 import { notificationmanager } from "../NotificationManager";
 import auth from "@react-native-firebase/auth";
+import PushNotification from "react-native-push-notification";
+import utilsS from "../../utilsS/index";
 
 class UserManager {
   constructor() {
@@ -142,6 +27,8 @@ class UserManager {
   @observable loader = true;
 
   @observable cl = "";
+
+  @persist("object") @observable city: []; // at start user data will be empty
 
   @observable cancelationCharges = 0;
   @observable baseCharges = 0;
@@ -193,6 +80,16 @@ class UserManager {
   @action.bound
   addPolygons(val) {
     this.polygons = val;
+  }
+
+  @action.bound
+  addCity(val) {
+    this.city = val;
+  }
+
+  @action.bound
+  removeCity() {
+    this.city = {};
   }
 
   @action.bound
@@ -339,129 +236,6 @@ class UserManager {
         console.error("checkIsUserRegister catch error : ", e);
         return;
       });
-  }
-
-  @action.bound
-  attemptToRegister(
-    name,
-    city,
-    email,
-    address,
-    cnic,
-    image,
-    cf,
-    cb,
-    lf,
-    lb,
-    mobile
-  ) {
-    cf.chk = "cnicF";
-    cb.chk = "cnicB";
-    lf.chk = "licenseF";
-    lb.chk = "licenseB";
-
-    let imgArr = [];
-    if (image != "") {
-      image.chk = "profile";
-      imgArr.push(image);
-    }
-    imgArr.push(cf);
-    imgArr.push(cb);
-    imgArr.push(lf);
-    imgArr.push(lb);
-
-    this.regloading = true;
-    this.settotal(imgArr.length);
-    this.setdone(0);
-    this.setisAllImageUploadDone(false);
-
-    try {
-      imgArr.map((e, i, a) => {
-        const data = new FormData();
-        const newFile = {
-          uri: e.uri,
-          type: e.type,
-          name: e.fileName,
-        };
-        data.append("files", newFile);
-        fetch(db.link.links + db.link.uploadFile, {
-          method: "post",
-          body: data,
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        })
-          .then((response) => response.json())
-          .then((responseData) => {
-            this.setdone(this.done + 1);
-            if (e.chk == "profile") {
-              this.profile = responseData.locationArray[0].fileLocation;
-            } else if (e.chk == "cnicF") {
-              this.cnicfront = responseData.locationArray[0].fileLocation;
-            } else if (e.chk == "cnicB") {
-              this.cnicback = responseData.locationArray[0].fileLocation;
-            } else if (e.chk == "licenseF") {
-              this.licnesefront = responseData.locationArray[0].fileLocation;
-            } else if (e.chk == "licenseB") {
-              this.licneseback = responseData.locationArray[0].fileLocation;
-            }
-            if (i == a.length - 1) {
-              setTimeout(() => {
-                this.setisAllImageUploadDone(true);
-                let body = {
-                  fullname: name,
-                  cnic: cnic,
-                  mobile_number: mobile,
-                  email: email,
-                  city: city,
-                  cnic_front_image: this.cnicfront,
-                  cnic_back_image: this.cnicback,
-                  profile_image: this.profile,
-                  address: address,
-                  license_front_image: this.licnesefront,
-                  license_back_image: this.licneseback,
-                  is_online: false,
-                  registration_token: this.notificationToken,
-                };
-
-                console.log("register user body : ", body);
-                db.api
-                  .apiCall("post", db.link.RENTER_REG_EP, body, "")
-                  ?.then((response) => {
-                    console.log("register user resp : ", response);
-                    this.setRegLoading(false);
-
-                    if (response.token) {
-                      this.addUser(response.token, response.data);
-                      //   carStore.carStore.attemptToGetCar();
-                      return;
-                    }
-
-                    if (response.message) {
-                      Alert.alert("", response.message);
-                      return;
-                    }
-                  })
-                  .catch((e) => {
-                    console.error("register user catch error : ", e);
-                    this.setdone(0);
-                    this.setisAllImageUploadDone(false);
-                    this.settotal(0);
-                    this.setRegLoading(false);
-                  });
-              }, 1000);
-              return;
-            }
-          })
-          .catch((err) => {
-            console.log("Error in Upload Images arr", err);
-            this.regloading = false;
-          });
-      });
-    } catch (e) {
-      console.log("add user catch error : ", e);
-      this.regloading = false;
-    }
   }
 
   @action.bound
@@ -618,6 +392,166 @@ class UserManager {
         return;
       });
   };
+
+  @action.bound
+  attemptToGetCities() {
+    // method, path, body, header
+    db.api
+      .apiCall("get", db.link.GET_CITIES, false, "")
+      .then((response) => {
+        console.log("getcities response : ", response);
+
+        if (response.data) {
+          this.addCity(response.data);
+          return;
+        }
+
+        return;
+      })
+      .catch((e) => {
+        // utils.AlertMessage("", "Network request failed");
+        console.error("getcities catch error : ", e);
+        return;
+      });
+  }
+
+  @action.bound
+  attemptToRegister(
+    name,
+    city,
+    email,
+    gender,
+    // address,
+    // cnic,
+    image,
+    // cf,
+    // cb,
+    // lf,
+    // lb,
+    mobile
+  ) {
+    // cf.chk = "cnicF";
+    // cb.chk = "cnicB";
+    // lf.chk = "licenseF";
+    // lb.chk = "licenseB";
+
+    let imgArr = [];
+    if (image != "") {
+      image.chk = "profile";
+      imgArr.push(image);
+    }
+    // imgArr.push(cf);
+    // imgArr.push(cb);
+    // imgArr.push(lf);
+    // imgArr.push(lb);
+
+    this.setRegLoading(true);
+    this.settotal(imgArr.length);
+    this.setdone(0);
+    this.setisAllImageUploadDone(false);
+
+    try {
+      imgArr.map((e, i, a) => {
+        console.log("img   : ", e.chk || "", "uri : ", e);
+        const data = new FormData();
+        const newFile = {
+          uri: e.uri,
+          type: e.type,
+          name: e.fileName,
+        };
+        data.append("files", newFile);
+        fetch(db.link.links + db.link.uploadFile, {
+          method: "post",
+          body: data,
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        })
+          .then((response) => response.json())
+          .then((responseData) => {
+            this.setdone(this.done + 1);
+            if (e.chk == "profile") {
+              image.uri = responseData.locationArray[0].fileLocation;
+            } else if (e.chk == "cnicF") {
+              // cf.uri = responseData.locationArray[0].fileLocation;
+            } else if (e.chk == "cnicB") {
+              // cb.uri = responseData.locationArray[0].fileLocation;
+            } else if (e.chk == "licenseF") {
+              // lf.uri = responseData.locationArray[0].fileLocation;
+            } else if (e.chk == "licenseB") {
+              // lb.uri = responseData.locationArray[0].fileLocation;
+            }
+            if (i == a.length - 1) {
+              setTimeout(() => {
+                this.setisAllImageUploadDone(true);
+
+                PushNotification.configure({
+                  onRegister: function (token) {
+                    usermanager.addnotificationToken(token.token);
+                    const bodyData = {
+                      fullname: name,
+                      mobile_number: mobile,
+                      email: email,
+                      gender: gender,
+                      profile_image: image.uri,
+                      city: city,
+                      is_active: true,
+                      registration_token: token.token,
+                    };
+                    usermanager.registerUser(bodyData);
+                  },
+                });
+
+                return;
+              }, 1000);
+            }
+          })
+          .catch((err) => {
+            console.log("Error in Upload Images arr", err);
+            this.setRegLoading(false);
+          });
+      });
+    } catch (e) {
+      console.log("add user catch error : ", e);
+      this.setRegLoading(false);
+    }
+  }
+
+  @action.bound
+  registerUser(body) {
+    console.log("register user body : ", body);
+    db.api
+      .apiCall("post", db.link.signup, body, "")
+      ?.then((response) => {
+        console.log("register user resp : ", response);
+        this.setRegLoading(false);
+
+        if (response.token) {
+          this.setUser(response.data);
+          this.addnotificationToken(this.nt);
+          this.addauthToken(response.token);
+          this.addnt("");
+          this.addMobile("");
+
+          utilsS.ToastAndroid.ToastAndroid_SB("Registeration Done");
+          gotoHome("");
+
+          return;
+        }
+
+        if (response.message) {
+          Alert.alert("", response.message);
+          return;
+        }
+      })
+      .catch((e) => {
+        console.error("register user catch error : ", e);
+        this.setdone(0);
+        this.setisAllImageUploadDone(false);
+        this.settotal(0);
+        this.setRegLoading(false);
+      });
+  }
 
   @action.bound
   getAllData = () => {

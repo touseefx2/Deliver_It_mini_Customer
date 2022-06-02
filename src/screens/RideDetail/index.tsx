@@ -796,7 +796,7 @@ const RideDetail = observer((props) => {
                       color: "#000",
                     }}
                   >
-                    {rent}
+                    {rent.toFixed()}
                   </Text>
                 </Text>
                 <Material

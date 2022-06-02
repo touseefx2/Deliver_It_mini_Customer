@@ -59,10 +59,15 @@ const styles = StyleSheet.create({
     marginTop: 20,
     alignItems: "center",
   },
+  carImageLoader: {
+    height: 15,
+    width: 15,
+    resizeMode: "contain",
+  },
   Category: {
     height: 50,
     width: 50,
-    borderRadius: 50,
+    borderRadius: 25,
     backgroundColor: "#e4f0f2",
     justifyContent: "center",
     alignItems: "center",
@@ -74,7 +79,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   CatImage: {
-    height: 20,
+    height: 35,
     width: 30,
   },
   CatText: {

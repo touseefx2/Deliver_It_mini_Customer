@@ -37,6 +37,7 @@ import Geolocation from "react-native-geolocation-service";
 import { requestmanager } from "../../managers/requestManager";
 import NetInfo from "@react-native-community/netinfo";
 import utilsS from "../../utilsS";
+import FastImage from "react-native-fast-image";
 
 interface Props {}
 const Home = observer((props: Props) => {
@@ -304,23 +305,9 @@ const Home = observer((props: Props) => {
   const renderCategory = () => {
     const c = vt.map((e, i, a) => {
       let t = e.type;
-      let image = require("../../assets/images/pickup.png");
-
-      if (t == "pickup") {
-        image = require("../../assets/images/pickup.png");
-      }
-
-      if (t == "shehzore") {
-        image = require("../../assets/images/shehzore.png");
-      }
-
-      if (t == "truck") {
-        image = require("../../assets/images/truck.png");
-      }
-
-      if (t == "container") {
-        image = require("../../assets/images/container.png");
-      }
+      let image =
+        { uri: e.image, priority: FastImage.priority.high } ||
+        require("../../assets/images/pickup.png");
 
       return (
         <View
@@ -337,7 +324,11 @@ const Home = observer((props: Props) => {
               gotoSearch(requestmanager.req ? requestmanager.req.type : e)
             }
           >
-            <Image source={image} style={styles.CatImage} />
+            <FastImage
+              resizeMode={FastImage.resizeMode.contain}
+              source={image}
+              style={styles.CatImage}
+            />
           </TouchableOpacity>
           <Text numberOfLines={1} ellipsizeMode="tail" style={styles.CatText}>
             {t}

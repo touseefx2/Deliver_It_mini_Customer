@@ -45,7 +45,7 @@ const SignIn = observer(() => {
 
     if (generalmanager.internet) {
       usermanager.addMobile("+92" + mobile);
-
+      usermanager.attemptToGetCities();
       gotoOTP();
     } else {
       utils.AlertMessage("", "Please connect internet !");

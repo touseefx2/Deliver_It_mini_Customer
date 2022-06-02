@@ -47,19 +47,17 @@ import { showNotification } from "../../services/Notification/showNotification";
 import StarRating from "react-native-star-rating";
 import utilsS from "../../utilsS/index";
 import db from "../../database/index";
+import FastImage from "react-native-fast-image";
 import { goToLogin } from "../../navigation";
 import { carmanager } from "../../managers/CarManager";
 const ENDPOINT = "https://deliveritbackend.herokuapp.com";
 // import socketIOClient from "socket.io-client";
 // const socket = socketIOClient(ENDPOINT);
 import io from "socket.io-client";
-
 import Geocoder from "react-native-geocoding";
 import { isPointInPolygon } from "geolib";
 import NetInfo from "@react-native-community/netinfo";
-import GestureRecognizer, {
-  swipeDirections,
-} from "react-native-swipe-gestures";
+import GestureRecognizer from "react-native-swipe-gestures";
 import themes from "../../themes";
 import theme from "../../theme";
 
@@ -75,8 +73,6 @@ const Search = observer((props: Props) => {
   const socket = io(ENDPOINT);
   let req = requestmanager.req;
   let vt = props.pickupType || "";
-  let pickupType = vt.type || "";
-  // let polygons = usermanager.polygons || [];
 
   const window = Dimensions.get("window");
   const { width, height } = window;
@@ -87,6 +83,9 @@ const Search = observer((props: Props) => {
   useEffect(() => {
     setpolygons(usermanager.polygons);
   }, [usermanager.polygons]);
+
+  const [vta, setvta] = useState(carmanager.vehicleType.slice()); //rate captain sheet
+  const [sr, setsr] = useState(vt); //selected ride
 
   const [isNoarea, setisNoarea] = useState(false); //rate captain sheet
 
@@ -111,11 +110,6 @@ const Search = observer((props: Props) => {
   let ctnotcuttimeba = 10; //2min or 120 sec no cut charges if user cancel trip before 2 min so not cut charges otherwise cut charges
   let ctcfba = usermanager.cancelationCharges; //fine //40
   let ctcfaa = usermanager.baseCharges; //90
-
-  const [srid, setsrid] = useState(vt._id); //selected vchl object
-  const [sr, setsr] = useState(pickupType); //selected ride
-  const [rr, setrr] = useState(vt.rent); //selected ride rs
-  const [vwtngchrg, setvwtngchrg] = useState(vt.waiting_charges); //selected ride rs
 
   const [ridedetail, setridedetail] = useState(false);
 
@@ -222,7 +216,6 @@ const Search = observer((props: Props) => {
   let rBSheetc = useRef(null);
   let mapRef = useRef(null);
   let lm = useRef(null); //pickup marker ref
-
   let watchID = null;
 
   const SocketOn = () => {
@@ -245,6 +238,13 @@ const Search = observer((props: Props) => {
   };
 
   // useeffects section
+
+  useEffect(() => {
+    const fid = sr._id;
+    vta.sort((x, y) => {
+      return x._id === fid ? -1 : y._id === fid ? 1 : 0;
+    });
+  }, []);
 
   useEffect(() => {
     if (cashDialog) {
@@ -834,7 +834,7 @@ const Search = observer((props: Props) => {
       customer: usermanager.user._id,
       pickup: Pickup,
       dropoff: Dropoff,
-      type: srid,
+      type: sr._id,
       distance: td,
       payment_mode: pm,
       deduct_from_wallet: cashSwitch,
@@ -1529,29 +1529,29 @@ const Search = observer((props: Props) => {
     });
   };
 
-  const gotoAddCard = () => {
-    BackHandler.removeEventListener(
-      "hardwareBackPress",
-      handleBackButtonClickk
-    );
+  // const gotoAddCard = () => {
+  //   BackHandler.removeEventListener(
+  //     "hardwareBackPress",
+  //     handleBackButtonClickk
+  //   );
 
-    Navigation.push(ROOT_NAV_ID, {
-      component: {
-        name: "AddCard",
-        passProps: {
-          from: "search",
-          onback: () => {
-            onbackaddEvenetlistener();
-          },
-        },
-        options: {
-          topBar: {
-            visible: false,
-          },
-        },
-      },
-    });
-  };
+  //   Navigation.push(ROOT_NAV_ID, {
+  //     component: {
+  //       name: "AddCard",
+  //       passProps: {
+  //         from: "search",
+  //         onback: () => {
+  //           onbackaddEvenetlistener();
+  //         },
+  //       },
+  //       options: {
+  //         topBar: {
+  //           visible: false,
+  //         },
+  //       },
+  //     },
+  //   });
+  // };
 
   const callUser = (p) => {
     const args = {
@@ -1830,33 +1830,23 @@ const Search = observer((props: Props) => {
         longitudeDelta: LONGITUDE_DELTA,
       };
       // console.log(" nearest captan   : ", obj);
-      return renderShowCars(obj, e.vehicle[0].type.type);
+      return renderShowCars(
+        obj,
+        { uri: e.vehicle[0].type.image, priority: FastImage.priority.high } ||
+          require("../../assets/images/pickup.png")
+      );
     });
 
     return c;
   };
 
-  const renderShowCars = (cars, name) => {
-    let n = "";
-
-    if (name == "truck") n = require("../../assets/images/truck.png");
-
-    if (name == "pickup") n = require("../../assets/images/pickup.png");
-
-    if (name == "shehzore") n = require("../../assets/images/shehzore.png");
-
-    if (name == "container") n = require("../../assets/images/container.png");
-
+  const renderShowCars = (cars, img) => {
     return (
       <Marker identifier="mkcars" coordinate={cars} pinColor={"silver"}>
-        <Image
-          source={n}
-          style={{
-            width: 30,
-            height: 30,
-            opacity: 0.65,
-            resizeMode: "contain",
-          }}
+        <FastImage
+          resizeMode={FastImage.resizeMode.contain}
+          source={img}
+          style={{ width: 30, height: 30, opacity: 0.65 }}
         />
       </Marker>
     );
@@ -2030,27 +2020,6 @@ const Search = observer((props: Props) => {
       },
     });
   };
-
-  // const polygons = [
-  //   {
-  //     _id: 1279,
-  //     latlngs: [
-  //       { latitude: 33.69518355093566, longitude: 73.00967558914313 },
-  //       { latitude: 33.66815034810782, longitude: 73.08854637327863 },
-  //       { latitude: 33.64148371451319, longitude: 73.02040609154068 },
-  //     ],
-  //   },
-  //   {
-  //     _id: 1465,
-  //     latlngs: [
-  //       { latitude: 33.615977405564195, longitude: 73.19976784477439 },
-  //       { latitude: 33.61767126619337, longitude: 73.31367403490933 },
-  //       { latitude: 33.5147084660298, longitude: 73.33706544426573 },
-  //     ],
-  //   },
-  // ];
-
-  // render section
 
   const rednerDot = () => {
     return (
@@ -2305,43 +2274,24 @@ const Search = observer((props: Props) => {
         </View>
       );
     } else {
-      let name = sr;
-      let n = "";
+      let stylee = !ridedetail
+        ? [styles.BottomView, { paddingHorizontal: 0, paddingVertical: 0 }]
+        : {
+            paddingHorizontal: 10,
+            backgroundColor: "white",
+            paddingVertical: 15,
+            height: "100%",
+            width: "100%",
+          };
 
-      let rs = rr * td.toFixed(1);
-
-      let maxWeight = carmanager.vehicleType.find(
-        (x) => x.type === name
-      ).max_weight;
-      let wc = carmanager.vehicleType.find(
-        (x) => x.type === name
-      ).waiting_charges;
-      console.log(`vtype rent rr  ${rr} * ${td} = ${rr * td}`);
-
-      if (name == "truck") {
-        n = require("../../assets/images/truck.png");
-      }
-
-      if (name == "pickup") {
-        n = require("../../assets/images/pickup.png");
-      }
-
-      if (name == "shehzore") {
-        n = require("../../assets/images/shehzore.png");
-      }
-
-      if (name == "container") {
-        n = require("../../assets/images/container.png");
-      }
-
-      if (!ridedetail) {
-        return (
-          <View
-            style={[
-              styles.BottomView,
-              { paddingHorizontal: 0, paddingVertical: 0 },
-            ]}
-          >
+      return (
+        <GestureRecognizer
+          onSwipeUp={(state) => setridedetail(true)}
+          onSwipeDown={(state) => setridedetail(false)}
+          config={config}
+          style={{ flex: 1 }}
+        >
+          <View style={stylee}>
             <View
               style={{
                 paddingHorizontal: 10,
@@ -2360,231 +2310,111 @@ const Search = observer((props: Props) => {
                 <Text style={{ fontSize: 13, color: "grey", width: "50%" }}>
                   {td.toFixed(1)} Km
                 </Text>
-                {/* <Text
-                  style={{
-                    fontSize: 13,
-                    color: "grey",
-                    width: "55%",
-                    textAlign: "right",
-                  }}
-                >
-                  {secondsToHms(traveltime)}
-                </Text> */}
               </View>
 
-              <TouchableOpacity
-                onPress={() => {
-                  setridedetail(true);
-                }}
-                style={{
-                  width: "100%",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Text style={{ fontSize: 20, color: "black" }}>
-                  Ride details
-                </Text>
-                <utils.vectorIcon.MaterialIcons
-                  name="keyboard-arrow-up"
-                  color="silver"
-                  size={25}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  setridedetail(true);
-                }}
-                style={{
-                  marginTop: 20,
-                  width: "98%",
-                  backgroundColor: "white",
-                  elevation: 5,
-                  borderRadius: 10,
-                  paddingVertical: 10,
-                  paddingHorizontal: 5,
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignSelf: "center",
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    width: "66%",
-                  }}
-                >
-                  <Image
-                    source={n}
-                    style={{ width: 45, height: 45, resizeMode: "contain" }}
-                  />
-                  <View
-                    style={{
-                      marginLeft: 10,
-                      width: "85%",
-                    }}
-                  >
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{
-                        fontSize: 19,
-                        color: "#0E47A1",
-                        textTransform: "capitalize",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      {name}
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{ fontSize: 15, color: "grey" }}
-                    >
-                      Munasib savaree
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{ fontSize: 15, color: "grey" }}
-                    >
-                      Max weight: {maxWeight} kg
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                      style={{ fontSize: 15, color: "grey" }}
-                    >
-                      Waiting charges: PKR {wc}
-                    </Text>
-                  </View>
-                </View>
-                <View style={{ width: "26%" }}>
-                  <Text
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{
-                      fontSize: 14,
-                      color: "black",
-                      fontWeight: "bold",
-                      textAlign: "right",
-                    }}
-                  >
-                    PKR {rs.toFixed()}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View
-              style={{
-                borderTopLeftRadius: 20,
-                borderTopRightRadius: 20,
-                elevation: 3,
-                marginTop: 10,
-                paddingHorizontal: 10,
-                paddingVertical: 15,
-                alignItems: "center",
-                justifyContent: "center",
-                width: "100%",
-              }}
-            >
-              <TouchableOpacity
-                onPress={() => {
-                  setcashDialog(true);
-                }}
-                style={{
-                  width: "100%",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <utils.vectorIcon.MaterialCommunityIcons
-                    name="cash"
-                    color="silver"
-                    size={35}
-                  />
-                  <Text
-                    style={{ marginLeft: 10, fontSize: 17, color: "black" }}
-                  >
-                    Cash
-                  </Text>
-                </View>
-                <utils.vectorIcon.MaterialIcons
-                  name="keyboard-arrow-down"
-                  color="silver"
-                  size={25}
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={() => {
-                  onClickChalo();
-                }}
-                style={styles.Button}
-              >
-                {!loader && <Text style={styles.ButtonText}>CHALO!</Text>}
-                {loader && <ActivityIndicator size={20} color="white" />}
-              </TouchableOpacity>
-            </View>
-          </View>
-        );
-      } else {
-        return (
-          <View
-            style={{
-              paddingHorizontal: 10,
-              backgroundColor: "white",
-              paddingVertical: 15,
-              height: "100%",
-              width: "100%",
-            }}
-          >
-            <GestureRecognizer
-              onSwipeDown={(state) => setridedetail(false)}
-              config={config}
-              style={{
-                flex: 1,
-                backgroundColor: "white",
-              }}
-            >
-              <View
-                style={{
-                  width: "100%",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Text
-                  style={{ fontSize: 20, color: "black", fontWeight: "bold" }}
-                >
-                  Ride details
-                </Text>
+              {vta.length > 0 && (
                 <TouchableOpacity
                   onPress={() => {
-                    setridedetail(false);
+                    setridedetail(!ridedetail);
+                  }}
+                  activeOpacity={0.6}
+                  style={{
+                    width: "100%",
+                    flexDirection: "row",
+
+                    alignItems: "center",
+
+                    justifyContent: "space-between",
+                    marginBottom: !ridedetail ? 0 : 5,
                   }}
                 >
+                  <Text style={{ fontSize: 20, color: "black" }}>
+                    Ride details
+                  </Text>
                   <utils.vectorIcon.MaterialIcons
-                    name="keyboard-arrow-down"
-                    color="black"
-                    size={30}
+                    name={
+                      !ridedetail ? "keyboard-arrow-up" : "keyboard-arrow-down"
+                    }
+                    color="silver"
+                    size={25}
                   />
                 </TouchableOpacity>
-              </View>
+              )}
 
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {renderShowRides(sr)}
-              </ScrollView>
-            </GestureRecognizer>
+              {vta.length > 0 ? (
+                <>
+                  {!ridedetail ? (
+                    renderShowRides()
+                  ) : (
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                      {renderShowRides()}
+                    </ScrollView>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Text>Sorry , No any pickup type found</Text>
+                </>
+              )}
+            </View>
+
+            {!ridedetail && (
+              <View
+                style={{
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  elevation: 3,
+                  paddingHorizontal: 10,
+                  paddingVertical: 15,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "100%",
+                }}
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    setcashDialog(true);
+                  }}
+                  style={{
+                    width: "100%",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <View style={{ flexDirection: "row", alignItems: "center" }}>
+                    <utils.vectorIcon.MaterialCommunityIcons
+                      name="cash"
+                      color="silver"
+                      size={35}
+                    />
+                    <Text
+                      style={{ marginLeft: 10, fontSize: 17, color: "black" }}
+                    >
+                      Cash
+                    </Text>
+                  </View>
+                  <utils.vectorIcon.MaterialIcons
+                    name="keyboard-arrow-down"
+                    color="silver"
+                    size={25}
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => {
+                    onClickChalo();
+                  }}
+                  style={styles.Button}
+                >
+                  {!loader && <Text style={styles.ButtonText}>CHALO!</Text>}
+                  {loader && <ActivityIndicator size={20} color="white" />}
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
-        );
-      }
+        </GestureRecognizer>
+      );
     }
   };
 
@@ -2595,24 +2425,11 @@ const Search = observer((props: Props) => {
     };
 
     let name = req.type.type;
-    let n = "";
     let rs = req.type.rent;
 
-    if (name == "truck") {
-      n = require("../../assets/images/truck.png");
-    }
-
-    if (name == "pickup") {
-      n = require("../../assets/images/pickup.png");
-    }
-
-    if (name == "shehzore") {
-      n = require("../../assets/images/shehzore.png");
-    }
-
-    if (name == "container") {
-      n = require("../../assets/images/container.png");
-    }
+    let n =
+      { uri: req.type.image, priority: FastImage.priority.high } ||
+      require("../../assets/images/pickup.png");
 
     let title =
       !arrive && !startride
@@ -2954,10 +2771,12 @@ const Search = observer((props: Props) => {
                       marginTop: 10,
                     }}
                   >
-                    <Image
+                    <FastImage
+                      resizeMode={FastImage.resizeMode.contain}
                       source={n}
-                      style={{ width: 30, height: 30, resizeMode: "contain" }}
+                      style={{ width: 30, height: 30 }}
                     />
+
                     <Text
                       style={{
                         fontSize: 17,
@@ -3436,86 +3255,35 @@ const Search = observer((props: Props) => {
     );
   };
 
-  const renderShowRides = (name) => {
-    var s = name;
+  console.log("vta : ", vta);
 
-    let n = [];
-    if (carmanager.vehicleType) {
-      carmanager.vehicleType.map((e, i, a) => {
-        n.push(e.type);
-      });
-    }
-    const index = n.indexOf(s);
-    n.splice(index, 1);
-    n.unshift(s);
+  const renderShowRides = () => {
+    let arr = !ridedetail ? vta.slice(0, 1) : vta;
 
-    let c = n.map((e, i, a) => {
-      let name = e;
-
-      let n = "";
-      let rr = 0;
-      let id = "";
-      let maxWeight = 0;
-      let wc = 0;
-
-      if (name == "truck") {
-        n = require("../../assets/images/truck.png");
-        rr = carmanager.vehicleType.find((x) => x.type === "truck").rent;
-        id = carmanager.vehicleType.find((x) => x.type === "truck")._id;
-        wc = carmanager.vehicleType.find(
-          (x) => x.type === "truck"
-        ).waiting_charges;
-        maxWeight = carmanager.vehicleType.find(
-          (x) => x.type === "truck"
-        ).max_weight;
-      }
-      if (name == "pickup") {
-        n = require("../../assets/images/pickup.png");
-        rr = carmanager.vehicleType.find((x) => x.type === "pickup").rent;
-        id = carmanager.vehicleType.find((x) => x.type === "pickup")._id;
-        wc = carmanager.vehicleType.find(
-          (x) => x.type === "pickup"
-        ).waiting_charges;
-        maxWeight = carmanager.vehicleType.find(
-          (x) => x.type === "pickup"
-        ).max_weight;
-      }
-      if (name == "shehzore") {
-        n = require("../../assets/images/shehzore.png");
-        rr = carmanager.vehicleType.find((x) => x.type === "shehzore").rent;
-        id = carmanager.vehicleType.find((x) => x.type === "shehzore")._id;
-        wc = carmanager.vehicleType.find(
-          (x) => x.type === "shehzore"
-        ).waiting_charges;
-        maxWeight = carmanager.vehicleType.find(
-          (x) => x.type === "shehzore"
-        ).max_weight;
-      }
-      if (name == "container") {
-        n = require("../../assets/images/container.png");
-        rr = carmanager.vehicleType.find((x) => x.type === "container").rent;
-        id = carmanager.vehicleType.find((x) => x.type === "container")._id;
-        wc = carmanager.vehicleType.find(
-          (x) => x.type === "container"
-        ).waiting_charges;
-        maxWeight = carmanager.vehicleType.find(
-          (x) => x.type === "container"
-        ).max_weight;
-      }
-      let rs = rr * td.toFixed(1);
+    let c = arr.map((e, i, a) => {
+      let name = e.type;
+      let rent = e.rent;
+      let n =
+        { uri: e.image, priority: FastImage.priority.high } ||
+        require("../../assets/images/pickup.png");
+      let rs = rent * td.toFixed(1);
+      let maxWeight = e.max_weight;
+      let wc = e.waiting_charges;
 
       return (
         <TouchableOpacity
           onPress={() => {
-            setsr(name);
-            setrr(rr);
-            setsrid(id);
+            setsr(e);
             setridedetail(false);
+            const fid = e._id;
+            vta.sort((x, y) => {
+              return x._id === fid ? -1 : y._id === fid ? 1 : 0;
+            });
           }}
           style={{
-            elevation: sr == name ? 5 : 0,
-            marginTop: i == 0 ? 40 : 20,
-            marginBottom: i == a.length - 1 ? 40 : 0,
+            elevation: sr.type == name ? 5 : 0,
+            marginTop: !ridedetail ? 7 : i == 0 ? 40 : 20,
+            marginBottom: !ridedetail ? 0 : i == a.length - 1 ? 40 : 0,
             width: "98%",
             backgroundColor: "white",
             borderRadius: 10,
@@ -3532,9 +3300,10 @@ const Search = observer((props: Props) => {
               width: "66%",
             }}
           >
-            <Image
+            <FastImage
+              resizeMode={FastImage.resizeMode.contain}
               source={n}
-              style={{ width: 45, height: 45, resizeMode: "contain" }}
+              style={styles.catImg}
             />
             <View style={{ marginLeft: 10, width: "85%" }}>
               <Text
@@ -3599,34 +3368,10 @@ const Search = observer((props: Props) => {
       velocityThreshold: 0.3,
       directionalOffsetThreshold: 80,
     };
-    var name = sr;
-    let n = "";
-    let rs = 0;
-    let id = "";
-
-    if (name == "truck") {
-      n = require("../../assets/images/truck.png");
-      (rs = carmanager.vehicleType.find((x) => x.type === "truck").rent),
-        (id = carmanager.vehicleType.find((x) => x.type === "truck")._id);
-    }
-
-    if (name == "pickup") {
-      n = require("../../assets/images/pickup.png");
-      (rs = carmanager.vehicleType.find((x) => x.type === "pickup").rent),
-        (id = carmanager.vehicleType.find((x) => x.type === "pickup")._id);
-    }
-
-    if (name == "shehzore") {
-      n = require("../../assets/images/shehzore.png");
-      (rs = carmanager.vehicleType.find((x) => x.type === "shehzore").rent),
-        (id = carmanager.vehicleType.find((x) => x.type === "shehzore")._id);
-    }
-
-    if (name == "container") {
-      n = require("../../assets/images/container.png");
-      (rs = carmanager.vehicleType.find((x) => x.type === "container").rent),
-        (id = carmanager.vehicleType.find((x) => x.type === "container")._id);
-    }
+    var name = sr.type;
+    let n = { uri: sr.image } || require("../../assets/images/pickup.png");
+    let rs = sr.rent;
+    let id = sr._id;
 
     return (
       <>
