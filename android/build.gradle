@@ -11,12 +11,15 @@ buildscript {
         compileSdkVersion = 29
         targetSdkVersion = 29
         ndkVersion = "20.1.5948944"
-        supportLibVersion='28.0.0'
-        playServicesVersion='17.0.0'
-        androidMapsUtilsVersion="+0.5"
+        
         googlePlayServicesVersion =   "+"   
         firebaseMessagingVersion =   "21.1.0"
          androidXCore = "1.7.0" // <-- Add this. Check versions here: https://developer.android.com/jetpack/androidx/releases/core
+
+
+supportLibVersion='28.0.0'
+        playServicesVersion='18.0.0'
+        androidMapsUtilsVersion="+0.5"
 
     }
     repositories {
