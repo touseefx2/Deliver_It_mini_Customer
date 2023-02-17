@@ -110,10 +110,6 @@ const SplashScreen = observer(() => {
     }, 2000);
   }, []);
 
-  console.log("user : ", usermanager.user);
-  // console.log("authToken : ",usermanager.authToken)
-  // console.log("notiToken : ",usermanager.notificationToken)
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar

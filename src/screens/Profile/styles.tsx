@@ -1,6 +1,10 @@
 import theme from "../../theme";
-import { StyleSheet, Dimensions } from "react-native";
+import { StyleSheet, Dimensions, Platform, StatusBar } from "react-native";
+
 const windowHeight = Dimensions.get("window").height;
+const STATUSBAR_HEIGHT = StatusBar.currentHeight;
+const APPBAR_HEIGHT = Platform.OS === "ios" ? 44 : 56;
+
 const styles = StyleSheet.create({
   Container: {
     flex: 1,
@@ -70,11 +74,49 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: "#fff",
   },
+  HeaderText2: {
+    fontSize: 16,
+    color: "white",
+  },
   BackButton: {
     height: 30,
     width: "15%",
     left: 15,
     top: 2,
+  },
+  saveButton: {
+    height: 30,
+    width: "15%",
+    position: "absolute",
+    right: 10,
+    top: 20,
+  },
+  ImageUploadConatiner: {
+    height: 30,
+    width: 30,
+    backgroundColor: "#DBDBDB",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "white",
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    opacity: 0.9,
+    elevation: 5,
+  },
+
+  fullImageModalCross: {
+    backgroundColor: "black",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "absolute",
+    top: Platform.OS == "ios" ? APPBAR_HEIGHT + 12 : 12,
+    left: 12,
   },
 });
 

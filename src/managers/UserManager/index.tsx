@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigation } from "react-native-navigation";
-import { AUTH_NAV_ID, gotoHome } from "../../navigation";
+import { AUTH_NAV_ID, gotoHome, goToLogin } from "../../navigation";
 import { observable, makeObservable, action } from "mobx";
 import { persist } from "mobx-persist";
 // import carStore from "../index";
@@ -89,7 +89,7 @@ class UserManager {
 
   @action.bound
   removeCity() {
-    this.city = {};
+    this.city = [];
   }
 
   @action.bound
@@ -182,8 +182,10 @@ class UserManager {
     this.authToken = "";
     this.uwbalance = 0;
     this.user = false;
+    this.removeCity();
     carmanager.setvehicleType(false);
     notificationmanager.removeNotification();
+    goToLogin();
   }
 
   @action.bound

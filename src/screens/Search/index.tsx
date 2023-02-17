@@ -23,6 +23,7 @@ import Icon from "react-native-vector-icons/Entypo";
 import { ROOT_NAV_ID } from "../../navigation/navs";
 import RBSheet from "react-native-raw-bottom-sheet";
 import MapView, { PROVIDER_GOOGLE, Marker, Polygon } from "react-native-maps";
+
 import {
   SideMenuView,
   RNNDrawer,
@@ -83,6 +84,7 @@ const Search = observer((props: Props) => {
   useEffect(() => {
     setpolygons(usermanager.polygons);
   }, [usermanager.polygons]);
+  console.log("polygons : ", polygons);
 
   const [vta, setvta] = useState(carmanager.vehicleType.slice()); //rate captain sheet
   const [sr, setsr] = useState(vt); //selected ride
@@ -1576,15 +1578,15 @@ const Search = observer((props: Props) => {
     }
   };
 
-  // markers section
-
   const destinationMarker = () => {
     return (
       <Marker
         identifier={"mkd"}
         ref={lm}
+        tracksViewChanges={false}
         coordinate={dropoff.location}
         pinColor={"white"}
+        anchor={{ x: 0.5, y: 1.0 }}
       >
         {!ispickup && (
           <View style={{ alignItems: "center", justifyContent: "center" }}>
@@ -3255,8 +3257,6 @@ const Search = observer((props: Props) => {
     );
   };
 
-  console.log("vta : ", vta);
-
   const renderShowRides = () => {
     let arr = !ridedetail ? vta.slice(0, 1) : vta;
 
@@ -3786,14 +3786,15 @@ const Search = observer((props: Props) => {
 
         <MapView
           showsCompass={false}
-          scrollEnabled={se}
           minZoomLevel={1} // default => 0
           maxZoomLevel={18} // default => 20
           provider={PROVIDER_GOOGLE}
+          pitchEnabled={false}
+          scrollEnabled={se}
           zoomEnabled={!ispickup ? false : true}
-          style={styles.map}
           rotateEnabled={!ispickup ? false : true}
           scrollDuringRotateOrZoomEnabled={false}
+          style={styles.map}
           ref={mapRef}
           initialRegion={{
             latitude: 37.78825,

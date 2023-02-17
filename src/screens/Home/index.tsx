@@ -449,7 +449,6 @@ const Home = observer((props: Props) => {
   const Logout = () => {
     usermanager.attemptToLogout();
     usermanager.setLogoutMsg(false);
-    goToLogin();
   };
 
   return (

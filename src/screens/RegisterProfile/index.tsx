@@ -560,8 +560,6 @@ const RegisterProfile = observer((props: Props) => {
     );
   };
 
-  console.log("reg load : ", usermanager.regloading);
-
   const renderUploadImageModal = () => {
     return (
       <Message
